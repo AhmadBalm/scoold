@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import static com.erudika.scoold.ScooldServer.SIGNINLINK;
 import static com.erudika.scoold.ScooldServer.FEEDBACKLINK;
+import static com.erudika.scoold.ScooldServer.HOMEPAGE;
 
 /**
  *
@@ -67,6 +68,9 @@ public class FeedbackController {
 	@GetMapping
 	public String get(@RequestParam(required = false, defaultValue = Config._TIMESTAMP) String sortby,
 			HttpServletRequest req, Model model) {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		Pager itemcount = utils.getPager("page", req);
 		itemcount.setSortby(sortby);
 		List<Post> feedbacklist = pc.findQuery(Utils.type(Feedback.class), "*", itemcount);
@@ -81,6 +85,9 @@ public class FeedbackController {
 	@GetMapping({"/{id}", "/{id}/{title}"})
 	public String getById(@PathVariable String id, @PathVariable(required = false) String title,
 			HttpServletRequest req, HttpServletResponse res, Model model) {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		Feedback showPost = pc.read(id);
 		if (showPost == null) {
 			return "redirect:" + FEEDBACKLINK;
@@ -105,6 +112,9 @@ public class FeedbackController {
 
 	@GetMapping("/write")
 	public String write(HttpServletRequest req, Model model) {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		if (!utils.isAuthenticated(req)) {
 			return "redirect:" + SIGNINLINK + "?returnto=" + FEEDBACKLINK + "/write";
 		}
@@ -117,6 +127,9 @@ public class FeedbackController {
 
 	@GetMapping("/tag/{tag}")
 	public String getTagged(@PathVariable String tag, HttpServletRequest req, Model model) {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		Pager itemcount = utils.getPager("page", req);
 		List<Post> feedbacklist = pc.findTagged(Utils.type(Feedback.class), new String[]{tag}, itemcount);
 		model.addAttribute("path", "feedback.vm");
@@ -129,6 +142,9 @@ public class FeedbackController {
 
 	@PostMapping
 	public String createAjax(HttpServletRequest req, Model model) {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		model.addAttribute("path", "feedback.vm");
 		if (utils.isAuthenticated(req)) {
 			Profile authUser = utils.getAuthUser(req);
@@ -151,6 +167,9 @@ public class FeedbackController {
 	@PostMapping({"/{id}", "/{id}/{title}"})
 	public String replyAjax(@PathVariable String id, @PathVariable(required = false) String title,
 			HttpServletRequest req, HttpServletResponse res, Model model) throws IOException {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		Post showPost = pc.read(id);
 		Profile authUser = utils.getAuthUser(req);
 		if (showPost != null && !showPost.isClosed() && !showPost.isReply()) {
@@ -173,12 +192,16 @@ public class FeedbackController {
 				answer.setAuthor(authUser);
 				model.addAttribute("showPost", showPost);
 				model.addAttribute("answerslist", Collections.singletonList(answer));
-				return "reply";
+			} else {
+				model.addAttribute("error", error);
+				model.addAttribute("path", "feedback.vm");
+				res.setStatus(400);
 			}
+			return "reply";
 		}
 		if (utils.isAjaxRequest(req)) {
 			res.setStatus(200);
-			return "base";
+			return "reply";
 		} else {
 			return "redirect:" + FEEDBACKLINK + "/" + id;
 		}
@@ -186,6 +209,9 @@ public class FeedbackController {
 
 	@PostMapping("/{id}/delete")
 	public String deleteAjax(@PathVariable String id, HttpServletRequest req) {
+		if (!utils.isFeedbackEnabled()) {
+			return "redirect:" + HOMEPAGE;
+		}
 		if (utils.isAuthenticated(req)) {
 			Feedback showPost = pc.read(id);
 			if (showPost != null) {

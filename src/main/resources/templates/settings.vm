@@ -21,18 +21,23 @@
 		<hr>
 		<form method="post">
 			#if($scooldUtils.isNearMeFeatureEnabled())
-				<p>$!lang.get('settings.location')</p>
-				<input type="hidden" name="latlng" class="latlngbox" value="$!{authUser.latlng}">
-				<div id="map-canvas" class="gmap center">#ajaxloading(false)</div>
+				<h4>$!lang.get('posts.locationfilter')</h4>
+				<div class="mbm">
+					<p>$!lang.get('settings.location')</p>
+					<input type="hidden" name="latlng" class="latlngbox" value="$!{authUser.latlng}">
+					<div id="map-canvas" class="gmap center">#ajaxloading(false)</div>
+				</div>
 			#end
 
-			<p>$!lang.get("settings.tagfilter.text")</p>
-			#sectoken(false)
-
-			<div class="input-field">
-				<i class="fa fa-tag fa-2x grey-text prefix ptm"></i>
-				<div class="chips chips-autocomplete" title="$!lang.get('tags.title')"></div>
-				<input type="hidden" name="tags" value="$!authUser.favtagsString">
+			<div class="mbm">
+				<h4 class="ptl">$!lang.get('posts.tagfilter')</h4>
+				<p>$!lang.get("settings.tagfilter.text")</p>
+				#sectoken(false)
+				<div class="input-field">
+					<i class="fa fa-tag fa-2x grey-text prefix ptm"></i>
+					<div class="chips chips-autocomplete" title="$!lang.get('tags.title')"></div>
+					<input type="hidden" name="tags" value="$!authUser.favtagsString">
+				</div>
 			</div>
 
 			#if($authUser.user.identityProvider == "generic")
@@ -51,9 +56,25 @@
 				</div>
 			#end
 
+			<h4 class="ptl">$!lang.get('settings.anonymity')</h4>
+			<div class="mbm">
+				<div class="switch">
+					<label>
+						$!lang.get('off')
+						#if($authUser.anonymityEnabled)
+						<input type="checkbox" name="anon" checked="checked" value="true">
+						#else
+						<input type="checkbox" name="anon" value="true">
+						#end
+						<span class="lever"></span>
+						$!lang.get('on')
+					</label>
+					<span class="mll mediumText">$!lang.get('settings.anonymity.text')</span>
+				</div>
+			</div>
+
 			<h4 class="ptl">$!lang.get('settings.notifications')</h4>
 			<p class="mvl grey-text text-darken-1"><i class="fa fa-envelope"></i> <tt>$!authUser.user.email</tt></p>
-			#if($scooldUtils.isAdmin($authUser))
 			<div class="mbm">
 				<div class="switch">
 					<label>
@@ -69,7 +90,21 @@
 					<span class="mll mediumText">$!lang.get('settings.newpostemails')</span>
 				</div>
 			</div>
-			#end
+			<div class="mbm">
+				<div class="switch">
+					<label>
+						$!lang.get('off')
+						#if($authUser.favtagsEmailsEnabled)
+						<input type="checkbox" name="favtagsEmailsOn" checked="checked" value="true">
+						#else
+						<input type="checkbox" name="favtagsEmailsOn" value="true">
+						#end
+						<span class="lever"></span>
+						$!lang.get('on')
+					</label>
+					<span class="mll mediumText">$!lang.get('settings.favtagsemails')</span>
+				</div>
+			</div>
 			<div class="mbm">
 				<div class="switch">
 					<label>
@@ -100,13 +135,31 @@
 					<span class="mll mediumText">$!lang.get('settings.commentemails')</span>
 				</div>
 			</div>
+
+			<h4 class="ptl">$!lang.get('settings.darkmode')</h4>
+			<div class="mbm">
+				<div class="switch">
+					<label>
+						$!lang.get('off')
+						#if($darkModeEnabled)
+						<input type="checkbox" name="dark" checked="checked" value="true">
+						#else
+						<input type="checkbox" name="dark" value="true">
+						#end
+						<span class="lever"></span>
+						$!lang.get('on')
+					</label>
+					<span class="mll mediumText">$!lang.get('settings.darkmode.text')</span>
+				</div>
+			</div>
+
 			<button class="btn waves-effect waves-light mtl" type="submit">$!lang.get('save')</button>
 		</form>
 		<br>
 		<br>
 		<br>
 		<div class="mvl">
-			<a href="${settingslink}?delete=true" title="" class="btn waves-effect waves-light red white-text">
+			<a href="${settingslink}?delete=true" title="Delete my account" class="red-text">
 				<strong>$!lang.get("settings.delete")</strong>
 			</a>
 		</div>

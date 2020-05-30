@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import com.erudika.para.email.Emailer;
 import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Utils;
 import static com.erudika.scoold.ScooldServer.COMMENTATOR_IFHAS;
+import static com.erudika.scoold.ScooldServer.CONTEXT_PATH;
 import static com.erudika.scoold.ScooldServer.HOMEPAGE;
 import static com.erudika.scoold.ScooldServer.getServerURL;
 import com.erudika.scoold.core.Comment;
@@ -34,6 +35,7 @@ import static com.erudika.scoold.core.Profile.Badge.DISCIPLINED;
 import com.erudika.scoold.utils.ScooldUtils;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.inject.Inject;
@@ -151,14 +153,19 @@ public class CommentController {
 				if (author != null) {
 					Map<String, Object> model = new HashMap<String, Object>();
 					String name = commentAuthor.getName();
-					String body = Utils.markdownToHtml(Utils.abbreviate(comment.getComment(), 255));
+					String body = Utils.markdownToHtml(comment.getComment());
 					String pic = Utils.formatMessage("<img src='{0}' width='25'>", commentAuthor.getPicture());
-					String postURL = getServerURL() + parentPost.getPostLink(false, false);
+					String postURL = getServerURL() + CONTEXT_PATH + parentPost.getPostLink(false, false);
 					model.put("logourl", Config.getConfigParam("small_logo_url", "https://scoold.com/logo.png"));
 					model.put("heading", Utils.formatMessage("New comment on <a href='{0}'>{1}</a>", postURL, parentPost.getTitle()));
 					model.put("body", Utils.formatMessage("<h2>{0} {1}:</h2><div class='panel'>{2}</div>", pic, name, body));
 					emailer.sendEmail(Arrays.asList(author.getEmail()), name + " commented on your post",
-							Utils.compileMustache(model, utils.loadEmailTemplate("notify")));
+							utils.compileEmailTemplate(model));
+
+					Map<String, Object> payload = new LinkedHashMap<>(ParaObjectUtils.getAnnotatedFields(comment, false));
+					payload.put("parent", parentPost);
+					payload.put("author", commentAuthor);
+					utils.triggerHookEvent("comment.create", payload);
 				}
 			}
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@
 package com.erudika.scoold.controllers;
 
 import com.erudika.para.client.ParaClient;
+import com.erudika.para.core.Address;
 import com.erudika.para.core.utils.ParaObjectUtils;
+import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Pager;
 import com.erudika.para.utils.Utils;
 import static com.erudika.scoold.ScooldServer.ANSWER_APPROVE_REWARD_AUTHOR;
@@ -30,7 +32,6 @@ import com.erudika.scoold.core.Profile;
 import com.erudika.scoold.core.Profile.Badge;
 import com.erudika.scoold.core.Reply;
 import com.erudika.scoold.utils.ScooldUtils;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +57,10 @@ import static com.erudika.scoold.ScooldServer.SIGNINLINK;
 import com.erudika.scoold.core.Question;
 import com.erudika.scoold.core.UnapprovedQuestion;
 import com.erudika.scoold.core.UnapprovedReply;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Optional;
 
 /**
  *
@@ -76,7 +81,7 @@ public class QuestionController {
 		this.pc = utils.getParaClient();
 	}
 
-	@GetMapping({"/{id}", "/{id}/{title}"})
+	@GetMapping({"/{id}", "/{id}/{title}", "/{id}/{title}/*"})
 	public String get(@PathVariable String id, @PathVariable(required = false) String title,
 			@RequestParam(required = false) String sortby, HttpServletRequest req, HttpServletResponse res, Model model) {
 
@@ -87,7 +92,10 @@ public class QuestionController {
 		Profile authUser = utils.getAuthUser(req);
 		if (!utils.canAccessSpace(authUser, showPost.getSpace())) {
 			return "redirect:" + (utils.isDefaultSpacePublic() || utils.isAuthenticated(req) ?
-					QUESTIONSLINK : SIGNINLINK + "?returnto=" + showPost.getPostLink(false, false));
+					QUESTIONSLINK : SIGNINLINK + "?returnto=" + req.getRequestURI());
+		} else if (!utils.isDefaultSpace(showPost.getSpace()) && pc.read(utils.getSpaceId(showPost.getSpace())) == null) {
+			showPost.setSpace(Post.DEFAULT_SPACE);
+			pc.update(showPost);
 		}
 
 		if (showPost instanceof UnapprovedQuestion && !(utils.isMine(showPost, authUser) || utils.isMod(authUser))) {
@@ -112,6 +120,7 @@ public class QuestionController {
 		model.addAttribute("answerslist", allPosts);
 		model.addAttribute("similarquestions", utils.getSimilarPosts(showPost, new Pager(10)));
 		model.addAttribute("maxCommentLength", Comment.MAX_COMMENT_LENGTH);
+		model.addAttribute("includeGMapsScripts", utils.isNearMeFeatureEnabled());
 		model.addAttribute("maxCommentLengthError", Utils.formatMessage(utils.getLang(req).get("maxlength"),
 				Comment.MAX_COMMENT_LENGTH));
 		return "base";
@@ -120,13 +129,22 @@ public class QuestionController {
 	@PostMapping("/{id}/edit")
 	public String edit(@PathVariable String id, @RequestParam(required = false) String title,
 			@RequestParam(required = false) String body, @RequestParam(required = false) String tags,
-			@RequestParam(required = false) String space, HttpServletRequest req) {
+			@RequestParam(required = false) String location, @RequestParam(required = false) String latlng,
+			@RequestParam(required = false) String space, HttpServletRequest req, HttpServletResponse res, Model model) {
 
 		Post showPost = pc.read(id);
 		Profile authUser = utils.getAuthUser(req);
 		if (!utils.canEdit(showPost, authUser) || showPost == null) {
-			return "redirect:" + req.getRequestURI();
+			model.addAttribute("post", showPost);
+			if (utils.isAjaxRequest(req)) {
+				res.setStatus(400);
+				return "blank";
+			} else {
+				return "redirect:" + req.getRequestURI(); // + "/edit-post-12345" ?
+			}
 		}
+		boolean isQuestion = !showPost.isReply();
+		HashSet<String> addedTags = new HashSet<>();
 		Post beforeUpdate = null;
 		try {
 			beforeUpdate = (Post) BeanUtils.cloneBean(showPost);
@@ -134,52 +152,69 @@ public class QuestionController {
 			logger.error(null, ex);
 		}
 
-		if (!StringUtils.isBlank(title) && title.length() > 10) {
+		if (StringUtils.length(title) > 10) {
 			showPost.setTitle(title);
 		}
-		if (!StringUtils.isBlank(body)) {
-			showPost.setBody(body);
-		}
-		if (!StringUtils.isBlank(tags) && showPost.isQuestion()) {
+		// body can be blank
+		showPost.setBody(body);
+		showPost.setLocation(location);
+		showPost.setAuthor(authUser);
+		if (!StringUtils.isBlank(tags) && isQuestion) {
 			showPost.updateTags(showPost.getTags(), Arrays.asList(StringUtils.split(tags, ",")));
+			addedTags.addAll(showPost.getTags());
+			addedTags.removeAll(new HashSet<>(Optional.ofNullable(showPost.getTags()).orElse(Collections.emptyList())));
 		}
-		if (showPost.isQuestion()) {
-			if (!utils.canAccessSpace(authUser, space)) {
-				space = utils.getSpaceIdFromCookie(authUser, req);
-			}
-			if (utils.canAccessSpace(authUser, space) && space != null &&
-					!utils.getSpaceId(space).equals(utils.getSpaceId(showPost.getSpace()))) {
-				showPost.setSpace(space);
-				changeSpaceForAllAnswers(showPost, space);
+		if (isQuestion) {
+			String validSpace = utils.getValidSpaceIdExcludingAll(authUser,
+					Optional.ofNullable(space).orElse(showPost.getSpace()), req);
+			if (utils.canAccessSpace(authUser, validSpace) && validSpace != null &&
+					!utils.getSpaceId(validSpace).equals(utils.getSpaceId(showPost.getSpace()))) {
+				showPost.setSpace(validSpace);
+				changeSpaceForAllAnswers(showPost, validSpace);
 			}
 		}
 		//note: update only happens if something has changed
 		if (!showPost.equals(beforeUpdate)) {
 			updatePost(showPost, authUser);
+			updateLocation(showPost, authUser, location, latlng);
 			utils.addBadgeOnceAndUpdate(authUser, Badge.EDITOR, true);
+			utils.sendUpdatedFavTagsNotifications(showPost, new ArrayList<>(addedTags));
 		}
-		return "redirect:" + showPost.getPostLink(false, false);
+		model.addAttribute("post", showPost);
+		if (utils.isAjaxRequest(req)) {
+			res.setStatus(200);
+			res.setContentType("application/json");
+			try {
+				res.getWriter().println("{\"url\":\"" + getPostLink(showPost) + "\"}");
+			} catch (IOException ex) { }
+			return "blank";
+		} else {
+			return "redirect:" + showPost.getPostLink(false, false);
+		}
 	}
 
 	@PostMapping({"/{id}", "/{id}/{title}"})
-	public String replyAjax(@PathVariable String id, @PathVariable(required = false) String title,
+	public String reply(@PathVariable String id, @PathVariable(required = false) String title,
 			@RequestParam(required = false) Boolean emailme, HttpServletRequest req,
-			HttpServletResponse res, Model model) throws IOException {
+			HttpServletResponse res, Model model) {
 		Post showPost = pc.read(id);
 		Profile authUser = utils.getAuthUser(req);
-		if (showPost != null && emailme != null) {
-			if (emailme) {
-				showPost.addFollower(authUser.getUser());
+		if (authUser == null || showPost == null) {
+			if (utils.isAjaxRequest(req)) {
+				res.setStatus(400);
+				return "base";
 			} else {
-				showPost.removeFollower(authUser.getUser());
+				return "redirect:" + QUESTIONSLINK + "/" + id;
 			}
-			pc.update(showPost); // update without adding revisions
-		} else if (showPost != null && !showPost.isClosed() && !showPost.isReply()) {
+		}
+		if (emailme != null) {
+			followPost(showPost, authUser, emailme);
+		} else if (!showPost.isClosed() && !showPost.isReply()) {
 			//create new answer
 			boolean needsApproval = utils.postNeedsApproval(authUser);
 			Reply answer = utils.populate(req, needsApproval ? new UnapprovedReply() : new Reply(), "body");
 			Map<String, String> error = utils.validate(answer);
-			if (!error.containsKey("body")) {
+			if (!error.containsKey("body") && !StringUtils.isBlank(answer.getBody())) {
 				answer.setTitle(showPost.getTitle());
 				answer.setCreatorid(authUser.getId());
 				answer.setParentid(showPost.getId());
@@ -199,12 +234,15 @@ public class QuestionController {
 				model.addAttribute("answerslist", Collections.singletonList(answer));
 				// send email to the question author
 				utils.sendReplyNotifications(showPost, answer);
+				model.addAttribute("newpost", getNewAnswerPayload(answer));
 			} else {
 				model.addAttribute("error", error);
 				model.addAttribute("path", "question.vm");
 				res.setStatus(400);
 			}
 			return "reply";
+		} else {
+			model.addAttribute("error", "Parent post doesn't exist or cannot have children.");
 		}
 		if (utils.isAjaxRequest(req)) {
 			res.setStatus(200);
@@ -222,6 +260,7 @@ public class QuestionController {
 			if (showPost instanceof UnapprovedQuestion) {
 				showPost.setType(Utils.type(Question.class));
 				pc.create(showPost);
+				utils.sendNewPostNotifications(showPost);
 			} else if (showPost instanceof UnapprovedReply) {
 				showPost.setType(Utils.type(Reply.class));
 				pc.create(showPost);
@@ -237,18 +276,19 @@ public class QuestionController {
 		if (!utils.canEdit(showPost, authUser) || showPost == null) {
 			return "redirect:" + req.getRequestURI();
 		}
-		if (utils.canEdit(showPost, authUser) && answerid != null && utils.isMine(showPost, authUser)) {
+		if (utils.canEdit(showPost, authUser) && answerid != null &&
+				(utils.isMine(showPost, authUser) || utils.isAdmin(authUser))) {
 			Reply answer = (Reply) pc.read(answerid);
 
 			if (answer != null && answer.isReply()) {
 				Profile author = pc.read(answer.getCreatorid());
 				if (author != null && utils.isAuthenticated(req)) {
-					boolean same = author.equals(authUser);
+					boolean samePerson = author.equals(authUser);
 
 					if (answerid.equals(showPost.getAnswerid())) {
 						// Answer approved award - UNDO
 						showPost.setAnswerid("");
-						if (!same) {
+						if (!samePerson) {
 							author.removeRep(ANSWER_APPROVE_REWARD_AUTHOR);
 							authUser.removeRep(ANSWER_APPROVE_REWARD_VOTER);
 							pc.updateAll(Arrays.asList(author, authUser));
@@ -256,12 +296,14 @@ public class QuestionController {
 					} else {
 						// Answer approved award - GIVE
 						showPost.setAnswerid(answerid);
-						if (!same) {
+						if (!samePerson) {
 							author.addRep(ANSWER_APPROVE_REWARD_AUTHOR);
 							authUser.addRep(ANSWER_APPROVE_REWARD_VOTER);
 							utils.addBadgeOnce(authUser, Badge.NOOB, true);
 							pc.updateAll(Arrays.asList(author, authUser));
 						}
+						utils.triggerHookEvent("answer.accept",
+								getAcceptedAnswerPayload(showPost, answer, authUser, author));
 					}
 					showPost.update();
 				}
@@ -274,14 +316,15 @@ public class QuestionController {
 	public String close(@PathVariable String id, HttpServletRequest req) {
 		Post showPost = pc.read(id);
 		Profile authUser = utils.getAuthUser(req);
-		if (!utils.canEdit(showPost, authUser) || showPost == null) {
+		if (showPost == null) {
 			return "redirect:" + req.getRequestURI();
 		}
-		if (utils.isMod(authUser)) {
+		if (utils.isMod(authUser) && !showPost.isReply()) {
 			if (showPost.isClosed()) {
 				showPost.setCloserid("");
 			} else {
 				showPost.setCloserid(authUser.getId());
+				utils.triggerHookEvent("question.close", showPost);
 			}
 			showPost.update();
 		}
@@ -303,15 +346,17 @@ public class QuestionController {
 	}
 
 	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable String id, HttpServletRequest req) {
+	public String delete(@PathVariable String id, HttpServletRequest req, Model model) {
 		Post showPost = pc.read(id);
 		Profile authUser = utils.getAuthUser(req);
 		if (!utils.canEdit(showPost, authUser) || showPost == null) {
+			model.addAttribute("post", showPost);
 			return "redirect:" + req.getRequestURI();
 		}
 		if (!showPost.isReply()) {
 			if ((utils.isMine(showPost, authUser) || utils.isMod(authUser))) {
 				showPost.delete();
+				model.addAttribute("deleted", true);
 				return "redirect:" + QUESTIONSLINK + "?success=true&code=16";
 			}
 		} else if (showPost.isReply()) {
@@ -320,13 +365,17 @@ public class QuestionController {
 				parent.setAnswercount(parent.getAnswercount() - 1);
 				parent.update();
 				showPost.delete();
+				model.addAttribute("deleted", true);
 			}
 		}
 		return "redirect:" + showPost.getPostLink(false, false);
 	}
 
 	private void changeSpaceForAllAnswers(Post showPost, String space) {
-		Pager pager = new Pager(1, "_docid", false, 25);
+		if (showPost == null || showPost.isReply()) {
+			return;
+		}
+		Pager pager = new Pager(1, "_docid", false, Config.MAX_ITEMS_PER_PAGE);
 		List<Reply> answerslist;
 		try {
 			do {
@@ -346,6 +395,9 @@ public class QuestionController {
 	}
 
 	private List<Reply> getAllAnswers(Profile authUser, Post showPost, Pager itemcount) {
+		if (showPost == null || showPost.isReply()) {
+			return Collections.emptyList();
+		}
 		List<Reply> answers = new ArrayList<>();
 		Pager p = new Pager(itemcount.getPage(), itemcount.getLimit());
 		if (utils.postsNeedApproval() && (utils.isMine(showPost, authUser) || utils.isMod(authUser))) {
@@ -372,5 +424,46 @@ public class QuestionController {
 				showPost.update();
 			}
 		}
+	}
+
+	private void updateLocation(Post showPost, Profile authUser, String location, String latlng) {
+		if (!showPost.isReply() && !StringUtils.isBlank(latlng)) {
+			Address addr = new Address(showPost.getId() + Config.SEPARATOR + Utils.type(Address.class));
+			addr.setAddress(location);
+			addr.setCountry(location);
+			addr.setLatlng(latlng);
+			addr.setParentid(showPost.getId());
+			addr.setCreatorid(authUser.getId());
+			pc.create(addr);
+		}
+	}
+
+	private Map<String, Object> getNewAnswerPayload(Reply answer) {
+		Map<String, Object> payload = new LinkedHashMap<>(ParaObjectUtils.getAnnotatedFields(answer, false));
+		payload.put("author", answer == null ? null : answer.getAuthor());
+		utils.triggerHookEvent("answer.create", payload);
+		return payload;
+	}
+
+	private Object getAcceptedAnswerPayload(Post showPost, Reply answer, Profile authUser, Profile author) {
+		Map<String, Object> payload = new LinkedHashMap<>(ParaObjectUtils.getAnnotatedFields(showPost, false));
+		Map<String, Object> answerPayload = new LinkedHashMap<>(ParaObjectUtils.getAnnotatedFields(answer, false));
+		answerPayload.put("author", author);
+		payload.put("children", answerPayload);
+		payload.put("authUser", authUser);
+		return payload;
+	}
+
+	private void followPost(Post showPost, Profile authUser, Boolean emailme) {
+		if (emailme) {
+			showPost.addFollower(authUser.getUser());
+		} else {
+			showPost.removeFollower(authUser.getUser());
+		}
+		pc.update(showPost); // update without adding revisions
+	}
+
+	private String getPostLink(Post showPost) {
+		return showPost.getPostLink(false, false) + (showPost.isQuestion() ? "" :  "#post-" + showPost.getId());
 	}
 }

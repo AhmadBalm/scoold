@@ -1,16 +1,8 @@
-/* global FB_APP_ID, gapi, FB, GOOGLE_CLIENT_ID, GITHUB_APP_ID, LINKEDIN_APP_ID, APPID, ENDPOINT, TWITTER_APP_ID, MICROSOFT_APP_ID, CONTEXT_PATH, OAUTH2_APP_ID, OAUTH2_SCOPE, OAUTH2_ENDPOINT, SLACK_APP_ID */
+/* global FB_APP_ID, gapi, FB, GOOGLE_CLIENT_ID, GITHUB_APP_ID, LINKEDIN_APP_ID, APPID, ENDPOINT, TWITTER_APP_ID, MICROSOFT_APP_ID, CONTEXT_PATH, OAUTH2_APP_ID, OAUTH2_SCOPE, OAUTH2_ENDPOINT, SLACK_APP_ID, OAUTH2_SECOND_APP_ID, OAUTH2_SECOND_ENDPOINT, OAUTH2_SECOND_SCOPE, OAUTH2_THIRD_APP_ID, OAUTH2_THIRD_ENDPOINT, OAUTH2_THIRD_SCOPE, AMAZON_APP_ID */
 /************************
  * Facebook integration *
  ************************/
 if (FB_APP_ID && FB_APP_ID.trim() !== "") {
-	(function(d, s, id) {
-		var js, fjs = d.getElementsByTagName(s)[0];
-		if (d.getElementById(id)) return;
-		js = d.createElement(s); js.id = id;
-		js.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.0&appId=" + FB_APP_ID;
-		fjs.parentNode.insertBefore(js, fjs);
-	}(document, 'script', 'facebook-jssdk'));
-
 	$('#fb-login-btn').on('click', function () {
 		FB.login(function(response) {
 			if (response.authResponse) {
@@ -26,15 +18,6 @@ if (FB_APP_ID && FB_APP_ID.trim() !== "") {
  * Google integration *
  **********************/
 if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.trim() !== "") {
-	(function(d, s, id) {
-		var js, gjs = d.getElementsByTagName(s)[0];
-		if (d.getElementById(id)) return;
-		js = d.createElement(s); js.id = id;
-		js.src = "https://apis.google.com/js/api:client.js";
-		js.addEventListener('load', function (e) { gpLogin(); }, false);
-		gjs.parentNode.insertBefore(js, gjs);
-	}(document, 'script', 'google-jssdk'));
-
 	function gpLogin() {
 		if ($('#gp-login-btn').length) {
 			gapi.load('auth2', function(){
@@ -97,7 +80,7 @@ if (MICROSOFT_APP_ID && MICROSOFT_APP_ID.trim() !== "") {
 	});
 }
 /*************************
- * Slack integration *
+ * Slack integration     *
  *************************/
 if (SLACK_APP_ID && SLACK_APP_ID.trim() !== "") {
 	$('#sl-login-btn').on('click', function () {
@@ -105,6 +88,18 @@ if (SLACK_APP_ID && SLACK_APP_ID.trim() !== "") {
                 "response_type=code&client_id=" + SLACK_APP_ID +
                 "&scope=identity.basic%20identity.email%20identity.team%20identity.avatar&state=" + APPID +
                 "&redirect_uri=" + ENDPOINT + "/slack_auth";
+		return false;
+	});
+}
+/*************************
+ * Amazon integration     *
+ *************************/
+if (AMAZON_APP_ID && AMAZON_APP_ID.trim() !== "") {
+	$('#az-login-btn').on('click', function () {
+		window.location = "https://www.amazon.com/ap/oa?" +
+                "response_type=code&client_id=" + AMAZON_APP_ID +
+                "&scope=profile&state=" + APPID +
+                "&redirect_uri=" + ENDPOINT + "/amazon_auth";
 		return false;
 	});
 }
@@ -117,6 +112,30 @@ if (OAUTH2_APP_ID && OAUTH2_APP_ID.trim() !== "") {
                 "response_type=code&client_id=" + OAUTH2_APP_ID +
                 "&scope=" + OAUTH2_SCOPE + "&state=" + APPID +
                 "&redirect_uri=" + ENDPOINT + "/oauth2_auth";
+		return false;
+	});
+}
+/********************************
+ * Second OAuth 2.0 integration *
+ ********************************/
+if (OAUTH2_SECOND_APP_ID && OAUTH2_SECOND_APP_ID.trim() !== "") {
+	$('#oa2second-login-btn').on('click', function () {
+		window.location = OAUTH2_SECOND_ENDPOINT + "?" +
+                "response_type=code&client_id=" + OAUTH2_SECOND_APP_ID +
+                "&scope=" + OAUTH2_SECOND_SCOPE + "&state=" + APPID +
+                "&redirect_uri=" + ENDPOINT + "/oauth2second_auth";
+		return false;
+	});
+}
+/*******************************
+ * Third OAuth 2.0 integration *
+ *******************************/
+if (OAUTH2_THIRD_APP_ID && OAUTH2_THIRD_APP_ID.trim() !== "") {
+	$('#oa2third-login-btn').on('click', function () {
+		window.location = OAUTH2_THIRD_ENDPOINT + "?" +
+                "response_type=code&client_id=" + OAUTH2_THIRD_APP_ID +
+                "&scope=" + OAUTH2_THIRD_SCOPE + "&state=" + APPID +
+                "&redirect_uri=" + ENDPOINT + "/oauth2third_auth";
 		return false;
 	});
 }

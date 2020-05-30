@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,20 @@
  */
 package com.erudika.scoold.controllers;
 
+import com.erudika.para.core.Sysprop;
+import com.erudika.para.utils.Config;
+import static com.erudika.scoold.ScooldServer.ABOUTLINK;
+import com.erudika.scoold.core.Profile;
 import com.erudika.scoold.utils.ScooldUtils;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  *
@@ -44,6 +51,28 @@ public class AboutController {
 	public String get(HttpServletRequest req, Model model) {
 		model.addAttribute("path", "about.vm");
 		model.addAttribute("title", utils.getLang(req).get("about.title"));
+		model.addAttribute("abouthtml", utils.getParaClient().read("template" + Config.SEPARATOR + "about"));
+
+		model.addAttribute("NICEPROFILE_BONUS", Profile.Badge.NICEPROFILE.getReward());
+		model.addAttribute("SUPPORTER_BONUS", Profile.Badge.SUPPORTER.getReward());
+		model.addAttribute("NOOB_BONUS", Profile.Badge.NOOB.getReward());
+		model.addAttribute("GOODQUESTION_BONUS", Profile.Badge.GOODQUESTION.getReward());
+		model.addAttribute("GOODANSWER_BONUS", Profile.Badge.GOODANSWER.getReward());
 		return "base";
+	}
+
+	@PostMapping
+	public String edit(@RequestParam String abouthtml, HttpServletRequest req, Model model) {
+		if (!utils.isAuthenticated(req) || !utils.isAdmin(utils.getAuthUser(req))) {
+			return "redirect:" + ABOUTLINK;
+		}
+		Sysprop about = new Sysprop("template" + Config.SEPARATOR + "about");
+		if (StringUtils.isBlank(abouthtml)) {
+			utils.getParaClient().delete(about);
+		} else {
+			about.addProperty("html", abouthtml);
+			utils.getParaClient().create(about);
+		}
+		return "redirect:" + ABOUTLINK;
 	}
 }

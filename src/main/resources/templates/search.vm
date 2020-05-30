@@ -1,7 +1,7 @@
+#if($currentSpace && !$currentSpace.isEmpty())
+	<p class="mediumText grey-text">$scooldUtils.getSpaceName($!currentSpace)</p>
+#end
 <div class="page-wrapper">
-	#if($currentSpace && !$currentSpace.isEmpty())
-		<p class="mediumText grey-text">$scooldUtils.getSpaceName($!currentSpace)</p>
-	#end
 	<h2>
 		#if ($showParam)
 			#if ($showParam == "questions")
@@ -30,19 +30,19 @@
 		#end
 
 		#if ($showParam == "questions")
-			#paginate("\#questionspage(\$questionlist)" $itemcount $params "page")
+			#paginate("questions" $itemcount $params "page")
 		#elseif ($showParam == "answers")
-			#paginate("\#answerspage(\$answerlist)" $itemcount $params "page")
+			#paginate("answers" $itemcount $params "page")
 		#elseif ($showParam == "feedback")
-			#paginate("\#questionspage(\$feedbacklist)" $itemcount $params "page")
+			#paginate("feedback" $itemcount $params "page")
 		#elseif ($showParam == "people")
 			<div class="row">
-				#paginate("\#peoplepage(\$userlist)" $itemcount $params "page")
+				#paginate("people" $itemcount $params "page")
 			</div>
 		#end
 	#else
 
-		#if ($questionlist.isEmpty() && $answerlist.isEmpty() && $feedbacklist.isEmpty() && $userlist.isEmpty())
+		#if ($questionslist.isEmpty() && $answerslist.isEmpty() && $feedbacklist.isEmpty() && $userlist.isEmpty())
 			<div class="card-panel hugeText center-align grey-text">
 				<div class="em5v">
 					$!lang.get("search.notfound")
@@ -50,17 +50,17 @@
 			</div>
 		#end
 
-		#if (!$questionlist.isEmpty())
+		#if (!$questionslist.isEmpty())
 			<div class="largeText pvl">$!lang.get("questions.title")</div>
-			#questionspage($questionlist)
+			#questionspage($questionslist)
 			<div class="mvl">
 				<a href="$searchlink/questions/$!searchQuery" class="btn waves-effect waves-light">$!lang.get("more")</a>
 			</div>
 		#end
 
-		#if (!$answerlist.isEmpty())
+		#if (!$answerslist.isEmpty())
 			<div class="largeText pvl">$!lang.get("answers.title")</div>
-			#compactanswerspage($answerlist)
+			#compactanswerspage($answerslist)
 			<div class="mvl">
 				<a href="$searchlink/answers/$!searchQuery" class="btn waves-effect waves-light">$!lang.get("more")</a>
 			</div>

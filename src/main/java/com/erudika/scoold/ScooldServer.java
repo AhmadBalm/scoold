@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,17 +21,14 @@ import com.erudika.para.client.ParaClient;
 import com.erudika.para.email.Emailer;
 import com.erudika.para.utils.Config;
 import com.erudika.scoold.utils.ScooldRequestInterceptor;
-import com.erudika.scoold.utils.CsrfFilter;
 import com.erudika.scoold.utils.ScooldEmailer;
 import com.erudika.scoold.utils.ScooldUtils;
 import com.erudika.scoold.velocity.VelocityConfigurer;
 import com.erudika.scoold.velocity.VelocityViewResolver;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import javax.inject.Named;
-import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.velocity.runtime.RuntimeConstants;
@@ -44,7 +41,6 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.server.ErrorPage;
 import org.springframework.boot.web.server.ErrorPageRegistrar;
 import org.springframework.boot.web.server.ErrorPageRegistry;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
@@ -62,10 +58,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ScooldServer extends SpringBootServletInitializer {
 
 	static {
-		String appName = System.getProperty("para.app_name");
-		if (StringUtils.isBlank(appName) || Config.PARA.equalsIgnoreCase(appName)) {
-			System.setProperty("para.app_name", "Scoold");
-		}
 		// tells ParaClient where to look for classes that implement ParaObject
 		System.setProperty("para.core_package_name", "com.erudika.scoold.core");
 		System.setProperty("para.auth_cookie", Config.getRootAppIdentifier().concat("-auth"));
@@ -75,18 +67,18 @@ public class ScooldServer extends SpringBootServletInitializer {
 	}
 
 	public static final String LOCALE_COOKIE = Config.getRootAppIdentifier() + "-locale";
-	public static final String CSRF_COOKIE = Config.getRootAppIdentifier() + "-csrf";
 	public static final String SPACE_COOKIE = Config.getRootAppIdentifier() + "-space";
 	public static final String TOKEN_PREFIX = "ST_";
 	public static final String HOMEPAGE = "/";
 	public static final String CONTEXT_PATH = StringUtils.stripEnd(getServerContextPath(), "/");
 	public static final String CDN_URL = StringUtils.stripEnd(Config.getConfigParam("cdn_url", CONTEXT_PATH), "/");
+	public static final String AUTH_COOKIE = Config.getConfigParam("auth_cookie", "scoold-auth");
 	public static final String AUTH_USER_ATTRIBUTE = TOKEN_PREFIX + "AUTH_USER";
+	public static final String REST_ENTITY_ATTRIBUTE = "REST_ENTITY";
 	public static final String IMAGESLINK = (Config.IN_PRODUCTION ? CDN_URL : CONTEXT_PATH) + "/images";
 	public static final String SCRIPTSLINK = (Config.IN_PRODUCTION ? CDN_URL : CONTEXT_PATH) + "/scripts";
 	public static final String STYLESLINK = (Config.IN_PRODUCTION ? CDN_URL : CONTEXT_PATH) + "/styles";
 
-	public static final int MAX_COMMENTS_PER_ID = Config.getConfigInt("max_comments_per_id", 1000);
 	public static final int MAX_TEXT_LENGTH = Config.getConfigInt("max_text_length", 20000);
 	public static final int MAX_TAGS_PER_POST = Config.getConfigInt("max_tags_per_post", 5);
 	public static final int MAX_REPLIES_PER_POST = Config.getConfigInt("max_replies_per_post", 500);
@@ -123,7 +115,6 @@ public class ScooldServer extends SpringBootServletInitializer {
 	public static final String TERMSLINK = HOMEPAGE + "terms";
 	public static final String TAGSLINK = HOMEPAGE + "tags";
 	public static final String SETTINGSLINK = HOMEPAGE + "settings";
-	public static final String TRANSLATELINK = HOMEPAGE + "translate";
 	public static final String REPORTSLINK = HOMEPAGE + "reports";
 	public static final String ADMINLINK = HOMEPAGE + "admin";
 	public static final String VOTEDOWNLINK = HOMEPAGE + "votedown";
@@ -135,6 +126,7 @@ public class ScooldServer extends SpringBootServletInitializer {
 	public static final String REVISIONSLINK = HOMEPAGE + "revisions";
 	public static final String FEEDBACKLINK = HOMEPAGE + "feedback";
 	public static final String LANGUAGESLINK = HOMEPAGE + "languages";
+	public static final String APIDOCSLINK = HOMEPAGE + "apidocs";
 
 	private static final Logger logger = LoggerFactory.getLogger(ScooldServer.class);
 
@@ -160,7 +152,7 @@ public class ScooldServer extends SpringBootServletInitializer {
 	 */
 	public static String getServerURL() {
 		String defaultHost = "http://localhost:" + getServerPort();
-		String host = Config.IN_PRODUCTION ? Config.getConfigParam("host_url", defaultHost) : defaultHost;
+		String host = Config.getConfigParam("host_url", defaultHost);
 		return StringUtils.removeEnd(host, "/");
 	}
 
@@ -175,7 +167,8 @@ public class ScooldServer extends SpringBootServletInitializer {
 	 * @return the context path of this Scoold server
 	 */
 	public static String getServerContextPath() {
-		return System.getProperty("server.servlet.context-path", Config.getConfigParam("context_path", ""));
+		String context = Config.getConfigParam("context_path", "");
+		return StringUtils.isBlank(context) ? System.getProperty("server.servlet.context-path", "") : context;
 	}
 
 	private static void initConfig() {
@@ -189,6 +182,27 @@ public class ScooldServer extends SpringBootServletInitializer {
 				Boolean.toString(Config.getConfigBoolean("mail.tls", true)));
 		System.setProperty("spring.mail.properties.mail.smtp.ssl.enable",
 				Boolean.toString(Config.getConfigBoolean("mail.ssl", false)));
+		System.setProperty("spring.mail.properties.mail.debug",
+				Boolean.toString(Config.getConfigBoolean("mail.debug", false)));
+	}
+
+	private Map<String, Object> oauthSettings(String alias) {
+		String a = StringUtils.trimToEmpty(alias);
+		Map<String, Object> settings = new HashMap<>();
+		settings.put("oa2" + a + "_app_id", Config.getConfigParam("oa2" + a + "_app_id", ""));
+		settings.put("oa2" + a + "_secret", Config.getConfigParam("oa2" + a + "_secret", ""));
+		settings.put("security.oauth" + a + ".token_url", Config.getConfigParam("security.oauth" + a + ".token_url", ""));
+		settings.put("security.oauth" + a + ".profile_url", Config.getConfigParam("security.oauth" + a + ".profile_url", ""));
+		settings.put("security.oauth" + a + ".scope", Config.getConfigParam("security.oauth" + a + ".scope", "openid email profile"));
+		settings.put("security.oauth" + a + ".accept_header", Config.getConfigParam("security.oauth" + a + ".accept_header", ""));
+		settings.put("security.oauth" + a + ".parameters.id", Config.getConfigParam("security.oauth" + a + ".parameters.id", null));
+		settings.put("security.oauth" + a + ".parameters.name", Config.getConfigParam("security.oauth" + a + ".parameters.name", null));
+		settings.put("security.oauth" + a + ".parameters.email", Config.getConfigParam("security.oauth" + a + ".parameters.email", null));
+		settings.put("security.oauth" + a + ".parameters.picture", Config.getConfigParam("security.oauth" + a + ".parameters.picture", null));
+		settings.put("security.oauth" + a + ".domain", Config.getConfigParam("security.oauth" + a + ".domain", null));
+		settings.put("security.oauth" + a + ".token_delegation_enabled",
+				Config.getConfigBoolean("security.oauth" + a + ".token_delegation_enabled", false));
+		return settings;
 	}
 
 	@Bean
@@ -205,7 +219,7 @@ public class ScooldServer extends SpringBootServletInitializer {
 		logger.info("Listening on port {}...", getServerPort());
 		String accessKey = Config.getConfigParam("access_key", "x");
 		ParaClient pc = new ParaClient(accessKey, Config.getConfigParam("secret_key", "x"));
-		pc.setEndpoint(Config.getConfigParam("endpoint", null));
+		pc.setEndpoint(Config.getConfigParam("endpoint", "http://localhost:8080"));
 		pc.setChunkSize(Config.getConfigInt("batch_request_size", 0)); // unlimited batch size
 
 		logger.info("Initialized ParaClient with endpoint {} and access key '{}'.", pc.getEndpoint(), accessKey);
@@ -225,19 +239,12 @@ public class ScooldServer extends SpringBootServletInitializer {
 		settings.put("ms_secret", Config.MICROSOFT_SECRET);
 		settings.put("sl_app_id", Config.SLACK_APP_ID);
 		settings.put("sl_secret", Config.SLACK_SECRET);
+		settings.put("az_app_id", Config.AMAZON_APP_ID);
+		settings.put("az_secret", Config.AMAZON_SECRET);
 		// OAuth 2 settings
-		settings.put("oa2_app_id", Config.getConfigParam("oa2_app_id", ""));
-		settings.put("oa2_secret", Config.getConfigParam("oa2_secret", ""));
-		settings.put("security.oauth.token_url", Config.getConfigParam("security.oauth.token_url", ""));
-		settings.put("security.oauth.profile_url", Config.getConfigParam("security.oauth.profile_url", ""));
-		settings.put("security.oauth.scope", Config.getConfigParam("security.oauth.scope", "openid email profile"));
-		settings.put("security.oauth.accept_header", Config.getConfigParam("security.oauth.accept_header", ""));
-		settings.put("security.oauth.parameters.id", Config.getConfigParam("security.oauth.parameters.id", null));
-		settings.put("security.oauth.parameters.name", Config.getConfigParam("security.oauth.parameters.name", null));
-		settings.put("security.oauth.parameters.email", Config.getConfigParam("security.oauth.parameters.email", null));
-		settings.put("security.oauth.parameters.picture", Config.getConfigParam("security.oauth.parameters.picture", null));
-		settings.put("security.oauth.domain", Config.getConfigParam("security.oauth.domain", null));
-		settings.put("security.oauth.token_delegation_enabled", Config.getConfigBoolean("security.oauth.token_delegation_enabled", false));
+		settings.putAll(oauthSettings(""));
+		settings.putAll(oauthSettings("second"));
+		settings.putAll(oauthSettings("third"));
 		// LDAP settings
 		settings.put("security.ldap.server_url", Config.getConfigParam("security.ldap.server_url", ""));
 		settings.put("security.ldap.base_dn", Config.getConfigParam("security.ldap.base_dn", ""));
@@ -247,13 +254,16 @@ public class ScooldServer extends SpringBootServletInitializer {
 		settings.put("security.ldap.user_search_filter", Config.getConfigParam("security.ldap.user_search_filter", "(cn={0})"));
 		settings.put("security.ldap.user_dn_pattern", Config.getConfigParam("security.ldap.user_dn_pattern", "uid={0}"));
 		settings.put("security.ldap.password_attribute", Config.getConfigParam("security.ldap.password_attribute", "userPassword"));
+		settings.put("security.ldap.username_as_name", Config.getConfigBoolean("security.ldap.username_as_name", false));
 		settings.put("security.ldap.active_directory_domain", Config.getConfigParam("security.ldap.active_directory_domain", ""));
+		settings.put("security.ldap.mods_group_node", Config.getConfigParam("security.ldap.mods_group_node", ""));
+		settings.put("security.ldap.admins_group_node", Config.getConfigParam("security.ldap.admins_group_node", ""));
 		if (!Config.getConfigParam("security.ldap.compare_passwords", "").isEmpty()) {
 			settings.put("security.ldap.compare_passwords", Config.getConfigParam("security.ldap.compare_passwords", ""));
 		}
 
 		// email verification
-		settings.put("security.allow_unverified_emails", Config.getConfigBoolean("security.allow_unverified_emails", false));
+		settings.put("security.allow_unverified_emails", Config.getConfigBoolean("security.allow_unverified_emails", !Config.IN_PRODUCTION));
 
 		// URLs for success and failure
 		settings.put("signin_success", getServerURL() + CONTEXT_PATH + SIGNINLINK + "/success?jwt=?");
@@ -299,24 +309,6 @@ public class ScooldServer extends SpringBootServletInitializer {
 		viewr.setSuffix(".vm");
 		viewr.setOrder(Ordered.HIGHEST_PRECEDENCE);
 		return viewr;
-	}
-
-	/**
-	 * @return CSRF protection filter bean
-	 */
-	@Bean
-	public FilterRegistrationBean<CsrfFilter> csrfFilterRegistrationBean() {
-		String path = "/*";
-		logger.debug("Initializing CSRF filter [{}]...", path);
-		FilterRegistrationBean<CsrfFilter> frb = new FilterRegistrationBean<>(new CsrfFilter());
-		frb.setDispatcherTypes(EnumSet.of(DispatcherType.REQUEST));
-		frb.setName("csrfFilter");
-		frb.setAsyncSupported(true);
-		frb.addUrlPatterns(path);
-		frb.setMatchAfter(false);
-		frb.setEnabled(true);
-		frb.setOrder(2);
-		return frb;
 	}
 
 	/**

@@ -11,8 +11,8 @@
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-		<link href="https://static.scoold.com/logosq.png" rel="image_src">
-		<link href="https://static.scoold.com/logosq.png" rel="apple-touch-icon">
+		<link href="https://scoold.com/logosq.png" rel="image_src">
+		<link href="https://scoold.com/logosq.png" rel="apple-touch-icon">
 		<link href="https://static.scoold.com/favicon.ico" rel="shortcut icon">
 		<link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
 		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -152,6 +152,46 @@
 				}
 			}
 
+			.dropit ul {
+				font-size: 0;
+				list-style-type: none;
+				width: 100%;
+			}
+			.dropit ul li {
+				font-size: 1rem;
+				color: #303030;
+				display: block;
+				padding: 0 15px;
+				position: relative;
+				width: 100%;
+			}
+			.dropit ul li ul {
+				display: none;
+				background-color: white;
+			}
+			.dropit ul li ul li a {
+				padding: 0;
+				width: 100%;
+				background-color: transparent;
+			}
+			.dropit ul li:hover {
+				cursor: pointer;
+				background-color: #e5e5e5;
+			}
+			.dropit ul li:hover ul {
+				display: block;
+				width: 150px;
+				right: 0;
+				position: absolute;
+			}
+			.dropit ul li:hover ul li {
+				display: block;
+				background-color: white;
+			}
+			.dropit ul li:hover ul li:hover {
+				background-color: #e0e0e0;
+			}
+
 		</style>
 	</head>
   <body>
@@ -167,17 +207,27 @@
 								</a>
 							</div>
 							<ul class="right hide-on-med-and-down">
-								<li><a href="https://github.com/Erudika/scoold/releases/" title="Download">Download</a></li>
-								<li><a href="https://paraio.com/scoold-pro" title="Buy Pro">Buy</a></li>
-								<li><a href="https://github.com/Erudika/scoold/" title="Source">Source</a></li>
-								<li><a href="https://live.scoold.com" title="Demo">Demo</a></li>
+								<li><a href="https://github.com/Erudika/scoold/releases/download/1.39.2/scoold-1.39.2.jar" title="Download">Download</a></li>
+								<li><a href="https://github.com/Erudika/scoold/blob/master/README.md" title="Documentation">Docs</a></li>
+								<li><a href="#faq" title="Frequently asked questions">FAQ</a></li>
+								<li class="dropit">
+									<ul>
+										<li>Demo
+											<ul>
+												<li><a href="https://live.scoold.com" title="Scoold Demo">Scoold Demo</a></li>
+												<li><a href="https://pro.scoold.com" title="Scoold Pro Demo">Scoold Pro Demo</a></li>
+											</ul>
+										</li>
+									</ul>
+								</li>
 							</ul>
 							<ul class="sidenav" id="mobile-drawer">
 								<li>&nbsp;</li>
-								<li><a href="https://github.com/Erudika/scoold/releases/" title="Download">Download</a></li>
+								<li><a href="https://github.com/Erudika/scoold/releases/download/1.39.2/scoold-1.39.2.jar" title="Download">Download</a></li>
 								<li><a href="https://paraio.com/scoold-pro" title="Buy Pro">Buy</a></li>
-								<li><a href="https://github.com/Erudika/scoold/" title="Source">Source</a></li>
-								<li><a href="https://live.scoold.com" title="Demo">Demo</a></li>
+								<li><a href="#faq" title="Frequently asked questions">FAQ</a></li>
+								<li><a href="https://live.scoold.com" title="Demo">Scoold Demo</a></li>
+								<li><a href="https://pro.scoold.com" title="Demo">Scoold Pro Demo</a></li>
 							</ul>
 						</div>
 					</nav>
@@ -287,7 +337,7 @@
 					<div class="white center-align">
 						<h3 id="get-started"><span class="phl">Getting started</span></h3>
 					</div>
-					<div class="white pvl">
+					<div class="white pal">
 						<ul>
 							<li class="mvm mediumText">
 								<p class="plm">You'll need a copy of Scoold Pro before continuing.</p>
@@ -305,7 +355,7 @@
 
 							</li>
 							<li class="mvm mediumText"><span class="pam">
-								<b>2.</b> Add the <a href="https://static.scoold.com/logosq.png">Scoold logo</a> to your Slack app, write a short description and "Save changes".</span><br>
+								<b>2.</b> Add the <a href="https://scoold.com/logosq.png">Scoold logo</a> to your Slack app, write a short description and "Save changes".</span><br>
 								<img src="slack_step1.png" alt="Step 1" class="responsive-img">
 							</li>
 							<li class="mvm mediumText"><span class="pam">
@@ -321,7 +371,7 @@
 								<img src="slack_step4.png" alt="Step 4" class="responsive-img">
 							</li>
 							<li class="mvm mediumText"><span class="pam">
-								<b>6.</b> Create the <code>/scoold</code> slack command pointing the "Request URL" to your Scoold instance, e.g. <code>https://myscoold.com/slack</code>.
+								<b>6.</b> Create the <code>/scoold</code> slash command pointing the "Request URL" to your Scoold instance, e.g. <code>https://myscoold.com/slack</code>.
 								"Escape channels, users, and links sent to your app" <b>must be checked</b></span><br><br>
 								<img src="slack_step5.png" alt="Step 5" class="responsive-img">
 							</li>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import com.erudika.para.core.utils.ParaObjectUtils;
 import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Pager;
 import com.erudika.para.utils.Utils;
-import static com.erudika.scoold.ScooldServer.HOMEPAGE;
 import com.erudika.scoold.core.Profile;
 import static com.erudika.scoold.core.Profile.Badge.REPORTER;
 import com.erudika.scoold.core.Report;
@@ -63,7 +62,7 @@ public class ReportsController {
 	public String get(@RequestParam(required = false, defaultValue = Config._TIMESTAMP) String sortby,
 			HttpServletRequest req, Model model) {
 		if (!utils.isMod(utils.getAuthUser(req))) {
-			return "redirect:" + HOMEPAGE;
+			return "redirect:" + REPORTSLINK;
 		}
 		Pager itemcount = utils.getPager("page", req);
 		itemcount.setSortby(sortby);
@@ -87,7 +86,7 @@ public class ReportsController {
 	}
 
 	@PostMapping
-	public void create(HttpServletRequest req, HttpServletResponse res) {
+	public void create(HttpServletRequest req, HttpServletResponse res, Model model) {
 		Report rep = utils.populate(req, new Report(), "link", "description", "parentid", "subType", "authorName");
 		Map<String, String> error = utils.validate(rep);
 		if (error.isEmpty()) {
@@ -101,8 +100,10 @@ public class ReportsController {
 				rep.setAuthorName(utils.getLang(req).get("anonymous"));
 			}
 			rep.create();
+			model.addAttribute("newreport", rep);
 			res.setStatus(200);
 		} else {
+			model.addAttribute("error", error);
 			res.setStatus(400);
 		}
 	}

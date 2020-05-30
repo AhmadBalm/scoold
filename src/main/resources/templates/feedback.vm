@@ -8,7 +8,7 @@
 				<div class="input-field mbl">
 					<i class="fa fa-paragraph pvm prefix grey-text"></i>
 					<label for="title_text">$!lang.get('posts.title')</label>
-					<input type="text" id="title_text" name="title" class="validate" maxlength="255" minlength="6" required>
+					<input type="text" id="title_text" name="title" class="validate" maxlength="255" minlength="2" required>
 					#getmessagebox("red white-text" $error.get("title"))
 				</div>
 
@@ -27,7 +27,6 @@
 					</div>
 				</div>
 
-				<div><i class="fa fa-save save-icon green-text hidden-save-icon"></i> &nbsp;</div>
 				<button class="btn mtl waves-effect waves-light" type="submit">
 					<i class="fa fa-paper-plane left"></i>$!lang.get('post')
 				</button>
@@ -46,15 +45,15 @@
 					#set($sortarr = {'votes': "", 'newest': ""} )
 					#setsortbyselection($sortarr 'votes')
 					<span class="right">
-						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)" title="Most voted answers"
-							 class="chip $sortarr.votes">$!lang.get("votes")</a>
-						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)?sortby=newest" title="Newest answers"
-							 class="chip $sortarr.newest">$!lang.get("newest")</a>
+						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)#sortorderparam('?')" title="Most voted answers"
+							 class="chip $sortarr.votes">#sortordericon() $!lang.get("votes")</a>
+						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)?sortby=newest#sortorderparam('&' 'newest')" title="Newest answers"
+							 class="chip $sortarr.newest">#sortordericon("newest") $!lang.get("newest")</a>
 					</span>
 					<h4 class="grey-text">$!lang.get("answers.title") #showcount($itemcount.count)</h4>
 				</div>
 
-				#paginate("\#answerspage(\$answerslist \$showPost)" $itemcount "" "page")
+				#paginate("replies" $itemcount "" "page")
 
 				#if ($authenticated && !$showPost.isClosed())
 				<div class="pvl mbm">
@@ -69,7 +68,6 @@
 						#getmessagebox("red white-text" $error.get("body"))
 
 						<input type="hidden" name="answer" value="true">
-						<div><i class="fa fa-save save-icon green-text hidden-save-icon"></i> &nbsp;</div>
 						<button class="btn mtl waves-effect waves-light" type="submit">
 							<i class="fa fa-paper-plane left"></i>$!lang.get('post')
 						</button>
@@ -133,9 +131,9 @@
 		<div class="chips-container">
 			#set($sortarr = {'votes': "", 'newest': "", 'updated': ""} )
 			#setsortbyselection($sortarr 'newest')
-			<a href="$feedbacklink" class="chip $sortarr.newest">$!lang.get("newest")</a>
-			<a href="$feedbacklink?sortby=votes" class="chip $sortarr.votes">$!lang.get("votes")</a>
-			<a href="$feedbacklink?sortby=updated" class="chip $sortarr.updated">$!lang.get("posts.updated")</a>
+			<a href="$feedbacklink#sortorderparam('?')" class="chip $sortarr.newest">#sortordericon() $!lang.get("newest")</a>
+			<a href="$feedbacklink?sortby=votes#sortorderparam('&' 'votes')" class="chip $sortarr.votes">#sortordericon("votes") $!lang.get("votes")</a>
+			<a href="$feedbacklink?sortby=updated#sortorderparam('&' 'updated')" class="chip $sortarr.updated">#sortordericon("updated") $!lang.get("posts.updated")</a>
 		</div>
 
 		<h2 class="hide-on-med-and-down">#feedbackTitle()</h2>
@@ -148,7 +146,7 @@
 				</div>
 			</div>
 		#else
-			#paginate("\#questionspage(\$feedbacklist)" $itemcount "" "page")
+			#paginate("feedback" $itemcount "" "page")
 		#end
 
 		<div class="center-align mvl">

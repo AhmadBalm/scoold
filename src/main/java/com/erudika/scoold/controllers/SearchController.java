@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Pager;
 import com.erudika.para.utils.Utils;
 import com.erudika.scoold.ScooldServer;
+import static com.erudika.scoold.ScooldServer.CONTEXT_PATH;
+import static com.erudika.scoold.ScooldServer.SEARCHLINK;
+import static com.erudika.scoold.ScooldServer.SIGNINLINK;
 import com.erudika.scoold.core.Feedback;
 import com.erudika.scoold.core.Post;
 import com.erudika.scoold.core.Profile;
@@ -40,6 +43,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -77,9 +81,12 @@ public class SearchController {
 	@GetMapping({"/search/{type}/{query}", "/search"})
 	public String get(@PathVariable(required = false) String type, @PathVariable(required = false) String query,
 			@RequestParam(required = false) String q, HttpServletRequest req, Model model) {
+		if (!utils.isDefaultSpacePublic() && !utils.isAuthenticated(req)) {
+			return "redirect:" + SIGNINLINK + "?returnto=" + SEARCHLINK + "?q=" + Optional.ofNullable(query).orElse("*");
+		}
 		List<Profile> userlist = new ArrayList<Profile>();
-		List<Post> questionlist = new ArrayList<Post>();
-		List<Post> answerlist = new ArrayList<Post>();
+		List<Post> questionslist = new ArrayList<Post>();
+		List<Post> answerslist = new ArrayList<Post>();
 		List<Post> feedbacklist = new ArrayList<Post>();
 		Pager itemcount = utils.getPager("page", req);
 		String queryString = StringUtils.isBlank(q) ? query : q;
@@ -88,22 +95,22 @@ public class SearchController {
 		String qsUsers = qs.replaceAll("properties\\.space:", "properties.spaces:");
 
 		if ("questions".equals(type)) {
-			questionlist = pc.findQuery(Utils.type(Question.class), qs, itemcount);
+			questionslist = pc.findQuery(Utils.type(Question.class), qs, itemcount);
 		} else if ("answers".equals(type)) {
-			answerlist = pc.findQuery(Utils.type(Reply.class), qs, itemcount);
+			answerslist = pc.findQuery(Utils.type(Reply.class), qs, itemcount);
 		} else if ("feedback".equals(type)) {
 			feedbacklist = pc.findQuery(Utils.type(Feedback.class), queryString, itemcount);
 		} else if ("people".equals(type)) {
 			userlist = pc.findQuery(Utils.type(Profile.class), qsUsers, itemcount);
 		} else {
-			questionlist = pc.findQuery(Utils.type(Question.class), qs);
-			answerlist = pc.findQuery(Utils.type(Reply.class), qs);
+			questionslist = pc.findQuery(Utils.type(Question.class), qs);
+			answerslist = pc.findQuery(Utils.type(Reply.class), qs);
 			feedbacklist = pc.findQuery(Utils.type(Feedback.class), queryString);
 			userlist = pc.findQuery(Utils.type(Profile.class), qsUsers);
 		}
 		ArrayList<Post> list = new ArrayList<Post>();
-		list.addAll(questionlist);
-		list.addAll(answerlist);
+		list.addAll(questionslist);
+		list.addAll(answerslist);
 		list.addAll(feedbacklist);
 		utils.fetchProfiles(list);
 
@@ -114,8 +121,8 @@ public class SearchController {
 		model.addAttribute("searchQuery", queryString);
 		model.addAttribute("itemcount", itemcount);
 		model.addAttribute("userlist", userlist);
-		model.addAttribute("questionlist", questionlist);
-		model.addAttribute("answerlist", answerlist);
+		model.addAttribute("questionslist", questionslist);
+		model.addAttribute("answerslist", answerslist);
 		model.addAttribute("feedbacklist", feedbacklist);
 
 		return "base";
@@ -130,8 +137,8 @@ public class SearchController {
 				+ "  <ShortName>" + Config.APP_NAME + "</ShortName>\n"
 				+ "  <Description>Search for questions and answers</Description>\n"
 				+ "  <InputEncoding>UTF-8</InputEncoding>\n"
-				+ "  <Image width=\"16\" height=\"16\" type=\"image/x-icon\">http://scoold.com/favicon.ico</Image>\n"
-				+ "  <Url type=\"text/html\" method=\"get\" template=\"" + ScooldServer.getServerURL()
+				+ "  <Image width=\"16\" height=\"16\" type=\"image/x-icon\">https://scoold.com/favicon.ico</Image>\n"
+				+ "  <Url type=\"text/html\" method=\"get\" template=\"" + ScooldServer.getServerURL() + CONTEXT_PATH
 				+ "/search?q={searchTerms}\"></Url>\n"
 				+ "</OpenSearchDescription>";
 		return ResponseEntity.ok().
@@ -160,7 +167,7 @@ public class SearchController {
 	private SyndFeed getFeed() throws IOException, FeedException {
 		List<Post> questions = pc.findQuery(Utils.type(Question.class), "*");
 		List<SyndEntry> entries = new ArrayList<SyndEntry>();
-		String baseurl = Config.getConfigParam("host_url", "https://scoold.com");
+		String baseurl = ScooldServer.getServerURL();
 		baseurl = baseurl.endsWith("/") ? baseurl : baseurl + "/";
 
 		SyndFeed feed = new SyndFeedImpl();

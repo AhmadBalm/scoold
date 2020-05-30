@@ -3,8 +3,9 @@
     ______________  ____  / /___/ /
    / ___/ ___/ __ \/ __ \/ / __  /
   (__  ) /__/ /_/ / /_/ / / /_/ /
- /____/\___/\____/\____/_/\__,_/  .com
+ /____/\___/\____/\____/_/\__,_/
 
+ https://scoold.com
 -->
 <html lang="$!currentLocale.language" dir="$!langDirection">
 	<head>
@@ -14,6 +15,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
 		<meta name="description" content="$!description">
 		<meta name="keywords" content="$!KEYWORDS">
+		<meta name="generator" content="Scoold">
 		<meta property="fb:app_id" content="$!FB_APP_ID">
 		<meta property="og:title" content="$!APPNAME | $!title">
 		<meta property="og:type" content="article">
@@ -29,28 +31,45 @@
 		<link href="$!request.contextPath/feed.xml" rel="alternate" type="application/atom+xml" title="New questions feed">
 		<link href="$!imageslink/logowhite.png" rel="image_src">
 		<link href="$!imageslink/logowhite.png" rel="apple-touch-icon">
-		<link href="$!imageslink/favicon.ico" rel="shortcut icon">
-		<link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-		<link href="https://fonts.googleapis.com/css?family=Roboto:400,300,700" rel="stylesheet">
-		<link href="https://unpkg.com/easymde/dist/easymde.min.css" rel="stylesheet">
+		<link href="$!faviconUrl" rel="shortcut icon">
+		<link href="$!styleslink/materialize.min.css" rel="stylesheet">
+		<link href="$!styleslink/font-awesome.min.css" rel="stylesheet">
+		<link href="$!styleslink/easymde.min.css" rel="stylesheet">
 		#if ($includeHighlightJS)
-		<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+		<link href="$!styleslink/highlighting.css" rel="stylesheet">
+		#end
+		#if($scooldUtils.isApiEnabled() && $request.getServletPath() == "/apidocs")
+		<link rel="stylesheet" type="text/css" href="$!styleslink/swagger-ui.css">
+		<link rel="stylesheet" href="$!styleslink/api.css">
 		#end
 		<link href="$!stylesheetUrl" rel="stylesheet" media="screen">
 		#if($!langDirection == "RTL")
 		<link href="$!styleslink/rtl.css" rel="stylesheet">
 		#end
-		<script nonce="$cspNonce" src="$!scriptslink/globals.js"></script>
+		<script nonce="$cspNonce" src="$!request.contextPath/scripts/globals.js"></script>
+		#set($_confirmMsg = $!lang.get('areyousure'))
+		<script nonce="$cspNonce">CONFIRM_MSG = "$!_confirmMsg";</script>
 		#if ($includeGMapsScripts && $includeGMapsScripts == true)
 		<script nonce="$cspNonce" type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=places&key=$!GMAPS_API_KEY"></script>
+		#end
+		#foreach($externalStyle in $externalStyles)
+		<link href="$!externalStyle" rel="stylesheet">
+		#end
+		#if($inlineUserCSS)
+		#set($_inlineCSS = $inlineUserCSS)
+		<style>
+			$!{_inlineCSS}
+		</style>
+		#end
+		#if($darkModeEnabled)
+		<link href="$!styleslink/dark.css" rel="stylesheet">
 		#end
 	</head>
 	<body>
 		<div class="scoold-wrapper">
 			<header>
 				<div class="${navbarFixedClass}">
-					<nav class="light-blue">
+					<nav class="navbar-color">
 						<div class="nav-wrapper container">
 							<a href="#" data-target="mobile-drawer" class="sidenav-trigger"><i class="fa fa-bars fa-2x"></i></a>
 
@@ -79,16 +98,28 @@
 								</li>
 							#end
 
-							#if($authenticated)
+							#macro(navbarspacesmenu $wrapped)
+								#set($spaceSelectedClass = "")
 								#if(($authUser.hasSpaces() || $isMod))
+									#if($wrapped)
 									<ul id="spaces-dropdown" class="dropdown-content">
-										#if($scooldUtils.canAccessSpace($authUser, ""))
-											#if($!currentSpace.isEmpty())
+									#else
+										<li class="divider"></li>
+									#end
+										#if($scooldUtils.canAccessSpace($authUser, "default"))
+											#if($!currentSpace.isEmpty() || $scooldUtils.isDefaultSpace($currentSpace))
 													#set($spaceSelectedClass = "navbtn-hover white-text")
 											#end
-
-											<li><a href="$questionslink/space?returnto=$!returnto" title="Default Space"
-														 class="${spaceSelectedClass}">Default space</a></li>
+											<li><a href="$questionslink/space?returnto=$!returnto" title="Default space"
+														 class="${spaceSelectedClass}">$!lang.get('defaultspace')</a></li>
+											<li class="divider"></li>
+										#end
+										#if($authUser.hasSpaces() && !$isMod)
+											#if($scooldUtils.isAllSpaces($currentSpace))
+												#set($allSpacesSelectedClass = "navbtn-hover white-text")
+											#end
+											<li><a href="$questionslink/space/all?returnto=$!returnto" title="All Spaces"
+														 class="${allSpacesSelectedClass}">$!lang.get('allspaces')</a></li>
 											<li class="divider"></li>
 										#end
 										#foreach($space in $authUser.spaces)
@@ -102,8 +133,14 @@
 														 class="$!{spaceSelectedClass}">$!utils.abbreviate($!spaceName, 35)</a></li>
 											<li class="divider"></li>
 										#end
+									#if($wrapped)
 									</ul>
+									#end
 								#end
+							#end
+
+							#if($authenticated)
+								#navbarspacesmenu(true)
 								<ul id="user-dropdown" class="dropdown-content">
 									<li><a href="$profilelink" title="$!{authUser.name}">$!lang.get('profile.title')</a></li>
 									#if($isAdmin)
@@ -185,6 +222,9 @@
 										<img src="#profilepic($authUser)" width="50"  alt="Avatar" class="profile-pic responsive-img left mhl">
 										<a href="$profilelink" class="black-text mvl pll">$!authUser.name</a>
 									</li>
+									#if($isAdmin)
+										<li><a href="$adminlink" title="Admin">$!lang.get('administration.title')</a></li>
+									#end
 									<li><a href="$settingslink" title="Settings">$!{lang.get('settings.title')}</a></li>
 								#else
 									<li><a href="${signinlink}?returnto=$!{returnto}" title="Sign in"
@@ -205,63 +245,72 @@
 										</li>
 									#end
 
-									#set($spaceSelectedClass = "")
-
-									#if(($authUser.hasSpaces() || $isMod))
-										#if($scooldUtils.canAccessSpace($authUser, ""))
-											#if($!currentSpace.isEmpty())
-													#set($spaceSelectedClass = "navbtn-hover white-text")
-											#end
-
-											<li class="divider"></li>
-											<li><a href="$questionslink/space?returnto=$!returnto" title="Default Space"
-														 class="${spaceSelectedClass}">Default space</a></li>
-										#end
-										#foreach($space in $authUser.spaces)
-											<li class="divider"></li>
-											#if($!currentSpace == $space)
-												#set($spaceSelectedClass = "navbtn-hover white-text")
-											#else
-												#set($spaceSelectedClass = "")
-											#end
-											#set($spaceName = $scooldUtils.getSpaceName($space))
-											<li><a href="$questionslink/space/$!scooldUtils.getSpaceId($!space)?returnto=$!returnto" title="$!{spaceName}"
-														 class="$!{spaceSelectedClass}">$!utils.abbreviate($!spaceName, 35)</a></li>
-										#end
-									#end
-
-									<li class="divider"></li>
-									<li>
-										<li><a href="$signoutlink" title="Sign out" class="mts signout">$!lang.get('signout')</a></li>
-									</li>
+									#navbarspacesmenu(false)
+									<li><a href="$signoutlink" title="Sign out" class="signout">$!lang.get('signout')</a></li>
 								#end
 							</ul>
 						</div>
 					</nav>
 
-					<nav id="search-drawer" class="white z-depth-1 hide">
+					<nav id="search-drawer" class="white z-depth-1 hide hide-on-med-and-down">
 						<div class="nav-wrapper container">
 							<form id="search-drawer" class="hide-on-med-and-down" action="$searchlink">
 								<div class="input-field">
 									#if($!langDirection == "RTL")
 										<i class="material-icons fa fa-close grey-text toggle-drawer"></i>
+										<a href="#" id="search-info-left"><i class="fa fa-question-circle grey-text"></i></a>
 									#end
 									<input id="search-box" type="search" name="q" placeholder="$!lang.get('search.search')" required>
 									<label class="label-icon" for="search-box"><i class="fa fa-search fa-2x grey-text"></i></label>
 									#if($!langDirection == "LTR")
+										<a href="#" id="search-info-right"><i class="fa fa-question-circle grey-text"></i></a>
 										<i class="material-icons fa fa-close grey-text toggle-drawer"></i>
 									#end
 								</div>
 							</form>
 						</div>
 					</nav>
+					<div id="search-info-drawer" class="z-depth-0 hide hide-on-med-and-down">
+						<div class="pvl container">
+							<div class="row">
+								<div class="col m6 s12">
+									<div>
+										<b>Examples:</b> <code>query</code>, <code>"exact match"</code>, <code>wildcard*</code>,
+										<code>wild?ard</code>, <code>wild*rd</code>
+									</div>
+									<div>
+										<b>Fuzzy search:</b> <code>cake~</code> (finds <code>cakes</code>, <code>bake</code>)
+									</div>
+									<div>
+										<b>Term boost:</b> <code>"red velvet"^4</code>, <code>chocolate^2</code>
+									</div>
+									<div>
+										<b>Field grouping:</b> <code>tags:(+work -"fun-stuff")</code>
+									</div>
+									<div>
+										<b>Escaping:</b> Escape characters <code>+-&|!(){}[]^"~*?:\</code> with <code>\</code>, e.g. <code>\+</code>
+									</div>
+								</div>
+								<div class="col m6 s12">
+									<div>
+										<b>Range search:</b> <code>properties.timestamp:[1587729413488 TO *]</code> (inclusive),
+										<code>properties.title:{A TO Z}</code>(excluding A and Z)
+									</div>
+									<div>
+										<b>Combinations:</b> <code>chocolate AND vanilla</code>, <code>chocolate OR vanilla</code>,
+										<code>(chocolate OR vanilla) NOT "vanilla pudding"</code>
+									</div>
+									<div>
+										<b>Field search:</b> <code>properties.title:"The Title" AND text</code>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</header>
 
 			<main class="container">
-				## DEBUG INFO ##
-				##foreach($s in $request.session.getAttributeNames())$s = $request.session.getAttribute($s)<br>#end
-
 				#infostrip()
 				#parse($path)
 			</main>
@@ -274,27 +323,24 @@
 			<footer class="page-footer">
 				<div class="container">
 					<div class="row mbn">
-						<div class="col l6 s12 sTextCenter">
-							<h5 class="white-text">
-								#if($showBranding)
-									Powered by <a href="https://paraio.com">
-										<img src="$imageslink/paradark.svg" width="100" alt="Para logo" class="para-logo-footer"></a>
-								#end
-							</h5>
+						<div class="col l7 s12 sTextCenter">
 							<div class="pvl">
+								#set($_footerHTML = $!scooldUtils.getFooterHTML())
+								$!_footerHTML
+								#if($scooldUtils.isFooterLinksEnabled())
 								<a href="$aboutlink" title="About">$!{lang.get('about.title')}</a>&nbsp;&nbsp;
+								#if($scooldUtils.isFeedbackEnabled())
 								<a href="$feedbacklink" title="Feedback">$!{lang.get('feedback.title')}</a>&nbsp;&nbsp;
+								#end
 								<a href="$privacylink" title="Privacy">$!{lang.get('privacy.title')}</a>&nbsp;&nbsp;
-								<a href="$termslink" title="Terms">$!{lang.get('terms.title')}</a>
+								<a href="$termslink" title="Terms">$!{lang.get('terms.title')}</a>&nbsp;&nbsp;
+								#if($scooldUtils.isApiEnabled())
+								<a href="$apidocslink" title="API docs">API</a>
+								#end
+								#end
 							</div>
 						</div>
-						<div class="col l6 s12 sTextCenter ${footerAlignClass}">
-							<div class="pvl white-text">
-								#if($showBranding)
-									Made with <i class="fa fa-coffee"></i> by
-									<a href="https://erudika.com"><b>Erudika</b></a>
-								#end
-							</div>
+						<div class="col l5 s12 sTextCenter mtl ${footerAlignClass}">
 							<a href="$!languageslink" title="Switch to a different language" class="btn-flat grey capitalize">
 								$!currentLocale.getDisplayLanguage($currentLocale)
 							</a>
@@ -303,13 +349,22 @@
 				</div>
 				<div class="footer-copyright">
 					<div class="container">
+
 						<div class="row mbn">
-							<div class="col s12 sTextCenter">
+							<div class="col l6 s12 sTextCenter">
 								#set($_liclink = $utils.formatMessage("$!lang.get('license')",
 								'<a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons</a>') )
 								<i class="fa fa-creative-commons"></i> $_liclink
 							</div>
+							<div class="col l6 s12 sTextCenter ${footerAlignClass}">
+								#if($showBranding)
+									<span>This is a <a href="https://scoold.com"><b>Scoold</b></a> website powered by <a href="https://paraio.com">
+										<img src="$imageslink/paradark.svg" width="60" alt="Para logo" class="para-logo-footer"></a>
+									</span>
+								#end
+							</div>
 						</div>
+
 					</div>
 				</div>
 			</footer>
@@ -324,18 +379,43 @@
 			</div>
 		</div>
 
-		<script nonce="$cspNonce" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-		<script nonce="$cspNonce" src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
-		<script nonce="$cspNonce" src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+		<script nonce="$cspNonce" src="$!scriptslink/jquery.min.js"></script>
+		<script nonce="$cspNonce" src="$!scriptslink/diff_match_patch.js"></script>
+		<script nonce="$cspNonce" src="$!scriptslink/materialize.min.js"></script>
 		#if ($includeHighlightJS)
-		<script nonce="$cspNonce" src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+		<script nonce="$cspNonce" src="$!scriptslink/highlight.min.js"></script>
 		#end
-		<script nonce="$cspNonce" src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+		<script nonce="$cspNonce" src="$!scriptslink/easymde.min.js"></script>
 		<script nonce="$cspNonce" src="$!scriptslink/scoold.js"></script>
+
 		#if ($request.getServletPath() == "/signin")
-		<script nonce="$cspNonce" src="$!scriptslink/signin.js"></script>
+			#if($FB_APP_ID && !$FB_APP_ID.isEmpty())
+			<script nonce="$cspNonce">
+				(function(d, s, id) {
+					var js, fjs = d.getElementsByTagName(s)[0];
+					if (d.getElementById(id)) return;
+					js = d.createElement(s); js.id = id;
+					js.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v6.0&appId=$FB_APP_ID";
+					fjs.parentNode.insertBefore(js, fjs);
+				}(document, 'script', 'facebook-jssdk'));
+			</script>
+			#end
+			<script nonce="$cspNonce" src="$!scriptslink/signin.js"></script>
+			#if($GOOGLE_CLIENT_ID && !$GOOGLE_CLIENT_ID.isEmpty())
+			<script nonce="$cspNonce">
+				(function(d, s, id) {
+					var js, gjs = d.getElementsByTagName(s)[0];
+					if (d.getElementById(id)) return;
+					js = d.createElement(s); js.id = id;
+					js.src = "https://apis.google.com/js/api:client.js";
+					js.addEventListener('load', function (e) { gpLogin(); }, false);
+					gjs.parentNode.insertBefore(js, gjs);
+				}(document, 'script', 'google-jssdk'));
+			</script>
+			#end
 		#end
-		#if ($GOOGLE_ANALYTICS_ID && !$GOOGLE_ANALYTICS_ID.isEmpty())
+
+		#if ($GOOGLE_ANALYTICS_ID && !$GOOGLE_ANALYTICS_ID.isEmpty() && $cookieConsentGiven)
 		<script nonce="$cspNonce" src="https://www.googletagmanager.com/gtag/js?id=$!{GOOGLE_ANALYTICS_ID}" async></script>
 		<script nonce="$cspNonce">
 			window.dataLayer = window.dataLayer || [];
@@ -345,16 +425,18 @@
 		</script>
 		#end
 		#foreach($externalScript in $externalScripts.entrySet())
-			<!-- External Script: $externalScript.key Begin -->
-			#if($externalScript.value.startsWith("http"))
-				<script nonce="$cspNonce" src="$externalScript.value"></script>
-			#else
-				#set($_extScript = $utils.base64dec($!externalScript.value) )
-				<script nonce="$cspNonce">
-					$!_extScript
-				</script>
+			#if($externalScript.getKey().startsWith("bypassconsent") || $cookieConsentGiven)
+				<!-- External Script: $externalScript.key Begin -->
+				#if($externalScript.value.startsWith("http"))
+					<script nonce="$cspNonce" src="$externalScript.value"></script>
+				#else
+					#set($_extScript = $scooldUtils.base64DecodeScript($!externalScript.value) )
+					<script nonce="$cspNonce">
+						$!_extScript
+					</script>
+				#end
+				<!-- External Script: $externalScript.key End -->
 			#end
-			<!-- External Script: $externalScript.key End -->
 		#end
 	</body>
 </html>

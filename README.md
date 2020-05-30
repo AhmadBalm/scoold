@@ -1,16 +1,19 @@
 ![Scoold Q&A](https://raw.githubusercontent.com/Erudika/scoold/master/assets/header.png)
 
-## Stack Overflow in a JAR
+## Scoold - Stack Overflow in a JAR
 
 [![Join the chat at https://gitter.im/Erudika/scoold](https://badges.gitter.im/Erudika/scoold.svg)](https://gitter.im/Erudika/scoold?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**Scoold** is a Q&A platform written in Java. The project was created back in 2008, released in 2012 as social network for
-schools inspired by Stack Overflow. In 2017 it was refactored, repackaged and open-sourced.
+**Scoold** is a Q&A/knowledge base platform written in Java. The project was created back in 2008, released in 2012 as
+social network for schools inspired by Stack Overflow. In 2017 it was refactored, repackaged and open-sourced.
 
-Scoold can run anywhere - Heroku, DigitalOcean, AWS, Azure or any VPS hosting provider. It's lightweight (~4000 LOC),
+Scoold can run anywhere - Heroku, DigitalOcean, AWS, Azure or any VPS hosting provider. It's lightweight (~7000 LOC),
 the backend is handled by a separate service called [Para](https://github.com/Erudika/para). Scoold does not require a
 database, and the controller logic is really simple because all the heavy lifting is delegated to Para.
 This makes the code easy to read and can be learned quickly by junior developers.
+
+**Scoold Pro**, the paid version of Scoold, has premium features which make it the perfect knowledge sharing platform for
+your company or team.
 
 **This project is fully funded and supported by [Erudika](https://erudika.com) - an independent, bootstrapped company.**
 
@@ -25,54 +28,65 @@ This makes the code easy to read and can be learned quickly by junior developers
 - Reputation and voting system with badges
 - Spaces (Teams) - groups of isolated questions and users
 - Webhooks with signature signing
+- [Zapier integration](https://zapier.com/developer/public-invite/96144/23ee4c1c6f03dc964b479b0d8ed027bb/) (beta)
 - Minimal frontend JS code based on jQuery
 - Modern, responsive layout powered by Materialize CSS
 - Suggestions for similar questions and hints for duplicate posts
 - Email notifications for post replies and comments
+- Backup and Restore
+- RESTful API defined with OpenAPI 3.0
 - Spring Boot project (single JAR)
 - LDAP authentication support
-- Social login (Facebook, Google, GitHub, LinkedIn, Microsoft, Slack, Twitter) with Gravatar support
+- Social login (Facebook, Google, GitHub, LinkedIn, Microsoft, Slack, Amazon, Twitter) with Gravatar support
 - Syntax highlighting for code in posts, GFM markdown support with tables, task lists and strikethrough
 - Emoji support - [cheat sheet](https://www.webpagefx.com/tools/emoji-cheat-sheet/)
 - SEO friendly
+- Cookie consent (for GDPR, CCPA, etc.)
 
-### Pro Features
+### [Buy Scoold Pro](https://paraio.com/scoold-pro) and also get these premium features:
 
-- Slack integration
-- SAML support
+- Slack / Mattermost integration
+- SAML authentication support
+- Custom authentication support
+- Mentions with notifications
+- File uploads (local, S3 or Imgur)
+- Account suspensions (permabans)
 - Anonymous posts
 - Unlimited spaces
 - Multiple admins
 - Multiple identity domains
 - Sticky / Favorite posts
 - Advanced syntax highlighting
-- Image uploads
+- Email digest of recent questions
 - Security notifications
-- Account suspensions/permabans
 - Wiki-style answers
 
-## [Buy Scoold Pro 299 EUR](https://paraio.com/scoold-pro)
+...and more!
 
-## Live Demo
+## Live Demos
 
-*The demo is deployed on a free dyno and it might take a minute to wake up.*
-### [Live demo on Heroku](https://live.scoold.com)
+### [Scoold Demo](https://live.scoold.com)  |  [Scoold Pro Demo](https://pro.scoold.com)
 
-### Quick Start (option 1 - managed Para backend, easier)
+For **admin** access, open the Scoold Pro demo and login with "Demo login".
 
-[JDK 1.8 or higher](https://openjdk.java.net/) is required to build and run the project.
+*Sometimes the demos might take a minute to load.*
+
+### Quick Start with a managed Para backend (easier)
+
+[JDK 1.8 or higher](https://openjdk.java.net/) is required to build and run the project. All major operating systems are supported.
 
 0. First, you *need* to create a developer app with [Facebook](https://developers.facebook.com),
 [Google](https://console.developers.google.com) or **any other identity provider** that you wish to use.
-This isn't necessary if you're planning to login with LDAP, SAML or with a email and password.
+This isn't necessary if you're planning to login with LDAP, SAML or with email and password.
 Save the obtained API keys in `application.conf`, as shown below.
 
 > **Important:** Authorized redirect URLs for Google and Facebook should look like this: `https://{your_scoold_host}`,
 `https://{your_scoold_host}/signin`. For all the other identity providers you must whitelist the Para host with the
-appropriate authentication endpoint. For example, for GitHub, the redirect URL could be: `https://paraio.com/github_auth`.
+appropriate authentication endpoint. For example, for GitHub, the redirect URL would be: `https://paraio.com/github_auth`,
+for OAuth 2 - `https://paraio.com/oauth2_auth` and [so on](http://paraio.org/docs/#029-passwordless).
 
 1. Create a new app on [ParaIO.com](https://paraio.com) and copy your access keys to a file
-2. Click one of the quick deploy buttons:
+2. Click one of the quick deploy buttons **or** skip to step 3 for local deployment:
 
 <a href="https://heroku.com/deploy?template=https://github.com/Erudika/scoold" title="Deploy to Heroku">
 	<img src="https://www.herokucdn.com/deploy/button.svg" alt="btn">
@@ -84,55 +98,100 @@ appropriate authentication endpoint. For example, for GitHub, the redirect URL c
 	<img src="https://azuredeploy.net/deploybutton.svg" height="32" alt="btn">
 </a>
 
-### Quick Start (option 2 - self-hosted Para backend, harder)
+3. Create Scoold's configuration file named `application.conf` and add the following properties to it:
+```ini
+para.app_name = "Scoold"
+para.access_key = "app:your_para_app"
+para.secret_key = "your_app_secret_key"
+para.endpoint = "https://paraio.com"
+```
+4. Start Scoold with `java -jar -Dconfig.file=./application.conf scoold-*.jar`
+5. Open `http://localhost:8000` in your browser
+
+### Quick Start with a self-hosted Para backend (harder)
 
 **Note: The Para backend server is deployed separately and is required for Scoold to run.**
 
-1. Create a new app on [ParaIO.com](https://paraio.com) and save the access keys in `application.conf` OR [run Para locally on port 8080](https://paraio.org/docs/#001-intro)
-2. Create a *separate* `application.conf` for Scoold and configure it to connect to Para on port 8080
-3. Start Scoold on port 8000: `java -jar -Dserver.port=8000 -Dconfig.file=./application.conf scoold.jar` OR `mvn spring-boot:run`
-4. Open `http://localhost:8000` in your browser
-
-If you run Para locally, use the [Para CLI](https://github.com/Erudika/para-cli) tool to create a separate app for Scoold:
+1. [run Para locally on port 8080](https://paraio.org/docs/#001-intro) and initialize it with `GET localhost:8080/v1/_setup`
+2. Save the access keys for the root Para app somewhere safe, you'll need them to configure Para CLI tool below
+3. Create a new directory for Scoold containing a file called `application.conf` and paste in the example configuration below.
+4. Create a **new Para app** called `scoold` using [Para CLI](https://github.com/Erudika/para-cli) tool:
 ```sh
+# You will need to have Node.js and NPM installed beforehand.
+$ npm install -g para-cli
 # run setup and enter the keys for the root app and endpoint 'http://localhost:8080'
 $ para-cli setup
 $ para-cli ping
 $ para-cli new-app "scoold" --name "Scoold"
 ```
+5. Save the keys inside Scoold's `application.conf` like this:
+```ini
+para.access_key = "app:scoold"
+para.secret_key = "..."
+```
+6. Start Scoold with `java -jar -Dconfig.file=./application.conf scoold-*.jar` and keep an eye on the log for any error messages
+7. Open `http://localhost:8000` in your browser
+
 
 > **Important: Do not use the same `application.conf` file for both Para and Scoold!**
 Keep the two applications in separate directories, each with its own configuration file.
-The settings shown below are all meant to be part of the Scoold config file.
+All settings shown below are meant to be kept in the Scoold config file.
+If you want to sign up with an email and password, SMTP settings must be configured before deploying Scoold to production.
 
-[Read the Para docs for more information.](https://paraio.org/docs)
+[Read the Para docs](https://paraio.org/docs) for details on how to run and configure your Scoold backend.
 
-**SMTP settings must be configured correctly before you start using Scoold if you want to signup with an email and password.**
+### Hardware requirements
+
+Scoold and Para can both be hosted on the same machine, provided it has at least 3 GB of RAM. Scoold requires:
+- at least 500 MB RAM
+- 1 vCPU or more
+- 10 GB disk space or more (primarily for logs and storing images)
+
+Para requires:
+- at least 1 GB RAM
+- 1 vCPU (2 are recommended)
+- 10 GB disk space or more (unless the database is stored on the same machine)
+
+JVM parameters: e.g. `java -jar -Xms600m -Xmx600m scoold-*.jar`
 
 ## Configuration
-
-> **Important:** Create a separate app for Scoold, instead of using `app:para`, when hosting your own instance of Para.
 
 The most important settings are `para.endpoint` - the URL of the Para server, as well as,
 `para.access_key` and `para.secret_key`. Connection to a Para server *is required* for Scoold to run.
 
-Copy the example configuration below to your **`application.conf`** and edit it if necessary:
+Copy the Scoold example configuration below to your **`application.conf`** and edit it if necessary:
 ```ini
+### Minimal configuration ###
+# the name of the application
 para.app_name = "Scoold"
 # the port for Scoold
 para.port = 8000
 # change this to "production" later
 para.env = "development"
-# the URL where Scoold is hosted, or http://localhost:8000
-para.host_url = "https://your-scoold-domain.com"
-# the URL of Para - could also be "http://localhost:8080"
-para.endpoint = "https://paraio.com"
+# the public-facing URL where Scoold is hosted
+para.host_url = "http://localhost:8000"
+# the URL of Para - can also be "https://paraio.com"
+para.endpoint = "http://localhost:8080"
 # access key for your Para app
 para.access_key = "app:scoold"
 # secret key for your Para app
-para.secret_key = "*****************"
+para.secret_key = ""
+# the email or identifier of the admin user - check Para user object
+para.admins = "admin@domain.com"
+##############################
+
+####### Authentication #######
 # enable or disable email and password authentication
 para.password_auth_enabled = true
+# Session cookie name
+para.auth_cookie = "scoold-auth"
+# Facebook - create your own Facebook app first!
+para.fb_app_id = "123456789"
+# Google - create your own Google app first!
+para.google_client_id = "123-abcd.apps.googleusercontent.com"
+###############################
+
+### Misc. ###
 # if false, commenting is allowed after 100+ reputation
 para.new_users_can_comment = true
 # if true, posts by new users require approval from moderator
@@ -140,17 +199,13 @@ para.posts_need_approval = false
 # reputation needed for posts to be auto-approved
 para.posts_rep_threshold = 100
 # needed for geolocation filtering of posts
-para.gmaps_api_key = "********************************"
-# the identifier of admin user - check Para user object
-para.admins = "admin@domain.com"
+para.gmaps_api_key = ""
+# Enable/disable near me feature (geolocation)
+para.nearme_feature_enabled = false
 # GA code
 para.google_analytics_id = "UA-123456-7"
 # enables syntax highlighting in posts
 para.code_highlighting_enabled = true
-# Facebook - create your own Facebook app first!
-para.fb_app_id = "123456789"
-# Google - create your own Google app first!
-para.google_client_id = "123-abcd.apps.googleusercontent.com"
 # If true, the default space will be accessible by everyone
 para.is_default_space_public = true
 # If true, users can change their profile pictures
@@ -161,6 +216,19 @@ para.name_edits_enabled = true
 para.webhooks_enabled = true
 # Enable/disable wiki style answers
 para.wiki_answers_enabled = true
+# Comment limits
+para.max_comments_per_id = 1000
+para.max_comment_length = 255
+# Post body limit (characters)
+para.max_post_length = 20000
+# Tags per post limit, must be < 100
+para.max_tags_per_post = 5
+# Sets the default tag for new questions
+para.default_question_tag = "question"
+# Enable/disable numeric pagination (< 1 2 3...N >)
+para.numeric_pagination_enabled = false
+# Selects the default language to load on startup, defaults to 'en'
+para.default_language_code = ""
 ```
 
 On startup, Scoold will try to connect to Para 10 times, with a 10 second interval between retries. After that it will
@@ -194,23 +262,30 @@ First, create a new directory and copy `docker-compose.yml` to it from this repo
 
 1. `para.env` - containing environment variables for Para, like `JAVA_OPTS`
 2. `scoold.env` - containing environment variables for Scoold, like `JAVA_OPTS`
-3. `para-application.conf` - containing the Para configuration
-4. `scoold-application.conf` - containing the Scoold configuration
+3. `para-application.conf` - containing the Para configuration (see example below)
+4. `scoold-application.conf` - containing the Scoold configuration (see example above)
 
 An example `para.env` file:
 ```sh
-JAVA_OPTS=-Dconfig.file=/para/application.conf
+JAVA_OPTS="-Dconfig.file=/para/application.conf -Dloader.path=lib"
 ```
-An `scoold.env` file:
+Example for `scoold.env`:
 ```sh
 JAVA_OPTS=-Dconfig.file=/scoold/application.conf
 BOOT_SLEEP=6
+```
+Example for `para-application.conf`:
+```ini
+para.env = "production"
+para.dao = "H2DAO"
 ```
 
 Then you can start both Scoold and Para with Docker Compose like so:
 ```
 $ docker-compose up
 ```
+Follow the quick start guide above to initialize Para and create a new app for Scoold. Once you have the access keys
+for that app, update `scoold-application.conf` with those and restart the Para + Scoold Docker stack.
 
 ## Kubernetes
 
@@ -243,6 +318,9 @@ which is valid for **12 hours**.
 
 For connecting Kubernetes to AWS ECR, please refer to [this article](https://medium.com/@damitj07/how-to-configure-and-use-aws-ecr-with-kubernetes-rancher2-0-6144c626d42c).
 
+In case you don't want to use AWS CLI for logging into the Scoold Pro registry, install the
+[AWS ECR Docker Credentials Helper](https://github.com/awslabs/amazon-ecr-credential-helper).
+
 
 ## Deploying Scoold to Heroku
 
@@ -250,26 +328,58 @@ For connecting Kubernetes to AWS ECR, please refer to [this article](https://med
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Erudika/scoold)
 
-**Manual deployment**
+### Manual deployment - option 1 (code push)
 
 1. First, clone this repository and create a new Heroku app
 2. Add Heroku as a Git remote target and push your changes with `git push heroku master`
-3. Go to the Heroku admin panel, under "Settings", "Reveal Config Vars" and set all the configuration variables shown above.
+3. Go to the Heroku admin panel, under "Settings", "Reveal Config Vars" and set all the configuration variables shown
+above but **replace all dots in the variable names with underscores**, e.g. `para.endpoint` -> `para_endpoint`.
 4. Open the app in your browser at `https://{appname}.herokuapp.com`.
 
-**Note**: On Heroku, all configuration variables (config vars) **must** be set without dots ".", for example `para.endpoint`
-becomes `para_endpoint`.
+### Manual deployment - option 2 (JAR push)
 
-It's also helpful to install the Heroku CLI tool.
+1. Build the Scoold JAR file or acquire the Scoold Pro JAR package by [buying Pro](https://paraio.com/scoold-pro)
+2. [Download and install the Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli)
+3. Create a Heroku app or use the id of an existing Heroku app where you want Scoold deployed
+4. Add the `heroku/jvm` and `heroku/java` buildpacks to your Heroku app from the Settings page
+5. Create a file `Procfile` containing this line:
+```
+web: java -Dserver.port=$PORT $JAVA_OPTS -jar scoold-*.jar $JAR_OPTS
+```
+6. Open a terminal in the directory containing the JAR file and execute:
+```
+$ heroku plugins:install java
+$ heroku deploy:jar scoold-x.y.z.jar --app myscooldapp
+```
+Pushing JARs to Heroku is useful in cases where you have an existing Heroku app which hosts a free version of Scoold,
+deployed through the "one-click" Heroku button, and you want to upgrade it to Scoold Pro.
+
+### Configuring Scoold on Heroku
+
+On Heroku you don't have a configuration file, instead you use Heroku's environment variables to configure Scoold.
+You can add each Scoold configuration property as an environment variable on the Settings page of your Heroku admin page.
+Click "Reveal Config Vars". Configuration variables (config vars) **must not** contain dots ".", for example `para.endpoint`
+becomes `para_endpoint`. You **must** replace every dot with an underscore in order to convert a Scoold configuration
+property to a Heroku environment variable.
+
+It's also helpful to install the Heroku CLI tool. Using the CLI you can watch the Scoold logs with:
+```
+$ heroku logs --tail --app myscooldapp
+```
+Or you can restart your dyno with:
+```
+$ heroku restart --app myscooldapp
+```
 
 ## Deploying Scoold to DigitalOcean
 
-1. Create a droplet and install Java and `wget`
-2. Execute `wget https://raw.githubusercontent.com/Erudika/scoold/master/installer.sh && bash installer.sh`
-2. Send the configuration file to your droplet: `scp application.conf root@123.234.12.34:/home/ubuntu`
-3. Restart Scoold with `ssh root@123.234.12.34 "systemctl restart scoold.service"`
-4. Go to `http://123.234.12.34` (use the correct IP address)
-5. Configure SSL on DigitalOcean or install nginx + letsencrypt on your droplet
+1. Create a droplet running Ubuntu and SSH into it
+2. Create a user `ubuntu` with `adduser ubuntu`
+3. Execute (as root) `wget https://raw.githubusercontent.com/Erudika/scoold/master/installer.sh && bash installer.sh`
+4. Copy the configuration file to your droplet: `scp application.conf root@123.234.12.34:/home/ubuntu`
+5. Restart Scoold with `ssh root@123.234.12.34 "systemctl restart scoold.service"`
+6. Go to `http://123.234.12.34:8000` and verify that Scoold is running (use the correct IP address of your droplet)
+7. Configure SSL on DigitalOcean or install nginx + letsencrypt on your droplet (see instructions below)
 
 ## Deploying Scoold to AWS
 
@@ -284,13 +394,7 @@ It's also helpful to install the Heroku CLI tool.
 3. Click "+ Add launch script" and copy/paste the contents of [installer.sh](https://github.com/Erudika/scoold/blob/master/installer.sh)
 4. Download the default SSH key pair or upload your own
 5. Choose the 512MB instance or larger (1GB recommended)
-6. Wait for the instance and open the IP address in your browser
-
-**Elastic Container Service**
-
-1. Find [Scoold on the AWS Marketplace](https://aws.amazon.com/marketplace/pp/B07M97M63H)
-2. Click "Subscribe" and "Continue to Configuration/Launch"
-3. Follow the usage instructions and pull the container image from the given ECR registry URL
+6. Wait for the instance to start and open the IP address in your browser at port `8000`
 
 **Elatic Beanstalk**
 
@@ -298,6 +402,27 @@ It's also helpful to install the Heroku CLI tool.
 2. Generate a WAR package with `mvn -Pwar package`
 3. [Create a new Beanstalk web app](https://console.aws.amazon.com/elasticbeanstalk/home?region=eu-west-1#/newApplication?applicationName=Scoold&platform=Tomcat&tierName=WebServer&instanceType=t1.micro)
 4. Upload the WAR package `target/scoold-x.y.z.war` to Beanstalk, modify any additional options and hit "Create"
+
+**Authentication with Amazon Cognito**
+
+Scoold is fully compatible with Amazon Cognito because Cognito is just another OAuth 2.0 service provider. Here's how to
+configure Scoold to work with Amazon Cognito:
+
+1. Create a Cognito user pool (if you don't have one already)
+2. Create a Cognito App client with the OAuth 2.0 authorization code grant enabled:
+3. Create a Cognito login subdomain for your app client like this: `https://scoold.auth.eu-west-1.amazoncognito.com`
+4. Edit the Scoold configuration file `application.conf` and add a new OAuth 2.0 authentication provider:
+```ini
+para.oa2_app_id = "cognito_app_client_id"
+para.oa2_secret = "cognito_app_client_secret"
+para.security.oauth.authz_url = "https://scoold.auth.eu-west-1.amazoncognito.com/login"
+para.security.oauth.token_url = "https://scoold.auth.eu-west-1.amazoncognito.com/oauth2/token"
+para.security.oauth.profile_url = "https://scoold.auth.eu-west-1.amazoncognito.com/oauth2/userInfo"
+para.security.oauth.provider = "Continue with Cognito"
+```
+5. Restart Scoold and login with a user from your Cognito user pool
+
+Make sure you whitelist your Para authentication endpoint with Cognito `https://para_url/oauth2_auth`.
 
 ## Deploying Scoold to Azure
 
@@ -337,6 +462,37 @@ Scoold is compatible with Tomcat 9+.
 To deploy Scoold at a different path instead of the root path, set `para.context_path = "/newpath`. The default value
 for this setting is blank, meaning Scoold will be deployed at the root directory.
 
+## Migrating from one Para deployment to another
+
+There are situations where you want to transfer your data from one Para server to another. This may be because you
+decided to switch databases or hosting providers. This process is made simple with the backup and restore feature in
+Scoold and Scoold Pro. Simply go to the Administration page and download all your data from the source installation.
+Then on the target installation go to the Administration page and import the ZIP file which contains the backup.
+
+**Important:** All data will be overwritten on restore, so it's highly recommended that the target Scoold installation
+is fresh and containing no data.
+
+When using the default H2 database, you can also copy the `./data` directory to the new installation or just copy all
+`*.db` files. The data directory also contains Lucene index folders for each app, e.g. `./data/scoold-lucene`. These
+folders can also be moved and copied or even deleted. You ca easily restore the Lucene index for a Para app by running
+a rebuild index task from the `para-cli` tool. Here's how to rebuild the root app `para` and a child app `scoold` with
+just two simple commands:
+
+```sh
+$ npm i -g para-cli
+$ para-cli rebuild-index --endpoint "http://localhost:8080" --accessKey "app:para" --secretKey "secret1"
+$ para-cli rebuild-index --endpoint "http://localhost:8080" --accessKey "app:scoold" --secretKey "secret2"
+```
+
+## Upgrading from Scoold to Scoold Pro
+
+You can seamlessly upgrade from Scoold to Scoold Pro without changing the configuration or anything else in your
+infrastructure. The process is very simple:
+
+1. Get your Scoold Pro package (JAR or WAR)
+2. Stop (undeploy) Scoold and replace its package with the Scoold Pro package
+3. Start Scoold Pro (or redeploy your Scoold Pro WAR file)
+
 ## Content-Security-Policy header
 
 This header is enabled by default for enhanced security. It can be disabled with `para.csp_header_enabled = false`.
@@ -361,7 +517,7 @@ or edit the value of `para.csp_header`.
 
 Additionally, there are 4 options to extend the values of `connect-src`, `frame-src`, `font-src` and `style-src`
 respectively:
-```
+```ini
 para.csp_connect_sources = "connect-domain1.com connect-domain2.com"
 para.csp_frame_sources = "frame-domain1.com frame-domain2.com"
 para.csp_font_sources = "font-domain1.com font-domain2.com"
@@ -374,15 +530,44 @@ Keep in mind that if your website has a lot of traffic, this will result in hund
 ## External scripts and JS snippets
 
 You can append external scripts and JS snippets to the end of the page by setting the `para.external_scripts` property.
-```
+Scripts are loaded in alphabetical order based on their key.
+```ini
 # URL
 para.external_scripts.myscript1 = "https://mydomain.com/script.js"
-# Base64 encoded JavaScript snippet
+# Base64 encoded long JavaScript snippet
 para.external_scripts.myscript2 = "J2Y2M3VlcH .... enZ2OScpOw=="
+# Short raw JS snippet
+para.external_scripts.myscript3 = "var x = 5; console.log('x is', x);"
 ```
 
 **Important:** Watch out for console errors in the browser after you add external scripts. In such cases you might have to
 modify the `frame-src` or `connect-src` portions of the CSP header (see the 4 options above).
+
+If 3rd party cookie consent is enabled (for GDPR, CCPA), all external scripts will be disabled until the user gives their
+consent. You can bypass that by prefixing its key with "bypassconsent", e.g. `para.external_scripts.bypassconsent_myscript2`.
+
+## External CSS stylesheets
+
+You can inline short snippets of CSS using `para.inline_css`. Keep in mind that any inlined CSS rules **will
+override** any of the previously declared stylesheets, including the main stylesheet rules.
+
+```ini
+para.inline_css = "body { color: #abcdef; }"
+```
+Another option is to add external stylesheets to the website:
+```ini
+para.external_styles = "https://mydomain.com/style1.css, https://mydomain.com/style2.css"
+```
+The last option is to completely replace the main stylesheet with a custom one. It's a good idea to copy the default
+CSS rules from [`/styles/style.css`](https://live.scoold.com/styles/style.css) and modify those, then upload the new
+custom stylesheet file to a public location and set:
+
+```ini
+para.stylesheet_url = "https://public.cdn.com/custom.css"
+```
+
+The order in which CSS rules are loaded is this (each overrides the previous ones):
+1. main stylesheet, 2. external stylesheets, 3. inline CSS.
 
 ## Serving static files from a CDN
 
@@ -404,6 +589,9 @@ para.mail.username = "user@example.com"
 para.mail.password = "password"
 para.mail.tls = true
 para.mail.ssl = false
+
+# enable SMTP debug logging
+para.mail.debug = true
 ```
 The email template is located in `src/main/resources/emails/notify.html`.
 
@@ -412,15 +600,27 @@ For **Gmail** you have to turn on "Less secure app access" in your Google accoun
 
 ## Email verification
 
-You can enable or disable the email verification step by setting `para.security.allow_unverified_emails = true`.
+You can enable or disable the email verification step by setting `para.security.allow_unverified_emails = true`
+(in Scoold's `application.conf`). By default, email verification is turned off when Scoold is running in development mode.
 This will allow new users to register with fake emails and Scoold will not send them a confirmation email. It's useful
 for testing purposes or in certain situations where you want to programmatically sign up users who don't have an email.
+
+## Welcome email customization
+
+To customize the message sent when a new user signs up with Scoold, modify these properties in your Scoold configuration
+file:
+```ini
+para.emails.welcome_text1 = "You are now part of {0} - a friendly Q&A community..."
+para.emails.welcome_text2 = "To get started, simply navigate to the "Ask question" page and ask a question..."
+para.emails.welcome_text3 = "Best, <br>The {0} team<br><br>"
+```
 
 ## Social login
 
 For authenticating with Facebook or Google, you only need your Google client id
 (e.g. `123-abcd.apps.googleusercontent.com`), or Facebook app id (only digits).
-For all the other providers, GitHub, LinkedIn, Twitter, Slack and Microsoft, you need to set both the app id and secret key.
+For all the other providers, GitHub, LinkedIn, Twitter, Slack, Amazon and Microsoft, you need to set both the app id
+and secret key.
 **Note:** if the credentials are blank, the sign in button is hidden for that provider.
 ```ini
 # Facebook
@@ -442,6 +642,9 @@ para.ms_secret = ""
 # Slack
 para.sl_app_id = ""
 para.sl_secret = ""
+# Amazon
+para.az_app_id = ""
+para.az_secret = ""
 ```
 You also need to set your host URL when running Scoold in production:
 ```ini
@@ -449,9 +652,22 @@ para.host_url = "https://your.scoold.url"
 ```
 This is required for authentication requests to be redirected back to the origin.
 
+**Important:** You must to whitelist the [Para endpoints](https://paraio.org/docs/#031-github) in the admin consoles of
+each authentication provider. For example, for GitHub you need to whitelist `https://parahost.com/github_auth` as a
+callback URL (redirect URL). Same thing applies for the other providers, **except Facebook and Google**.
+For these two providers you need to whitelist these two URLs, containing the public address of Scoold:
+```
+https://myscoold.com
+https://myscoold.com/signin
+```
+For locally hosted authentication providers (SAML, LDAP, Mattermost, etc.) the authentication endpoints will also be
+pointing to the URL of your Scoold server.
+
+**If you skip this step, authentication will most likely not work.**
+
 ## OAuth 2.0 login
 
-You can authenticate users against your own OAuth 2.0/OpenID Connect server through the generic OAuth 2 filter in Para.
+You can authenticate users against any OAuth 2.0/OpenID Connect server through the generic OAuth 2 filter in Para.
 Here are all the options which you can set in the Scoold configuration file:
 ```ini
 # minimal setup
@@ -460,10 +676,11 @@ para.oa2_secret = ""
 para.security.oauth.authz_url = "https://your-idp.com/login"
 para.security.oauth.token_url = "https://your-idp.com/token"
 para.security.oauth.profile_url = "https://your-idp.com/userinfo"
+para.security.oauth.scope = "openid email profile"
 
 # extra options
-para.security.oauth.scope = "openid email profile"
 para.security.oauth.accept_header = ""
+para.security.oauth.domain = "paraio.com"
 para.security.oauth.parameters.id = "sub"
 para.security.oauth.parameters.picture = "picture"
 para.security.oauth.parameters.email = "email"
@@ -476,10 +693,45 @@ para.security.oauth.provider = "Continue with OpenID Connect"
 para.security.oauth.token_delegation_enabled = false
 ```
 
+Make sure you **whitelist** your Para authentication endpoint `https://para_url/oauth2_auth` as a trusted redirect URL.
+
 **Access token delegation** is an additional security feature, where the access token from the identity provider (IDP)
 is stored in the user's `idpAccessToken` field and validated on each authentication request with the IDP. If the IDP
-revocates a delegated access token, then that user would automatically be logged out from Scoold and denied access
+revokes a delegated access token, then that user would automatically be logged out from Scoold and denied access
 immediately.
+
+You can add two additional custom OAuth 2.0/OpenID connect providers called "second" and "third". Here's what the settings
+look like for the "second" provider:
+
+```ini
+# minimal setup (second provider)
+para.oa2second_app_id = ""
+para.oa2second_secret = ""
+para.security.oauthsecond.authz_url = "https://your-idp.com/login"
+para.security.oauthsecond.token_url = "https://your-idp.com/token"
+para.security.oauthsecond.profile_url = "https://your-idp.com/userinfo"
+para.security.oauthsecond.scope = "openid email profile"
+
+# extra options (second provider)
+para.security.oauthsecond.accept_header = ""
+para.security.oauthsecond.domain = "paraio.com"
+para.security.oauthsecond.parameters.id = "sub"
+para.security.oauthsecond.parameters.picture = "picture"
+para.security.oauthsecond.parameters.email = "email"
+para.security.oauthsecond.parameters.name = "name"
+
+# Sets the string on the login button (second provider)
+para.security.oauthsecond.provider = "Continue with Second OAuth 2.0 provider"
+
+# Enable/disable access token delegation (second provider)
+para.security.oauthsecond.token_delegation_enabled = false
+```
+
+For the "third" OAuth 2.0 provider it's the same configuration but replace "second" with "third".
+
+**Note:** If Para and Scoold are hosted both on the same server and your Para instance is not publicly accessible from
+the Internet, you need to expose `localhost:8080/oauth2_auth` by configuring a proxy server to forward
+`yourdomain/oauth2_auth` requests to `localhost:8080/oauth2_auth`. If Para is publicly accessible this step is not necessary.
 
 ## LDAP configuration
 
@@ -487,22 +739,94 @@ LDAP authentication is initiated with a request like this `POST /signin?provider
 There are several configuration options which Para needs in order to connect to your LDAP server. These are the defaults:
 
 ```ini
+# minimal setup
 para.security.ldap.server_url = "ldap://localhost:8389/"
 para.security.ldap.base_dn = "dc=springframework,dc=org"
+para.security.ldap.user_dn_pattern = "uid={0}"
+# add this ONLY if you are connecting to Active Directory
+para.security.ldap.active_directory_domain = ""
+
+# extra options - change only if necessary
 para.security.ldap.user_search_base = ""
 para.security.ldap.user_search_filter = "(cn={0})"
-para.security.ldap.user_dn_pattern = "uid={0}"
 para.security.ldap.password_attribute = "userPassword"
-# set this only if you are connecting to Active Directory
-para.security.ldap.active_directory_domain = ""
+para.security.ldap.username_as_name = false
 
 # Sets the string on the login button (PRO)
 para.security.ldap.provider = "Continue with LDAP"
+
+# automatic groups mapping
+para.security.ldap.mods_group_node = ""
+para.security.ldap.admins_group_node = ""
 ```
 
-For Active Directory LDAP, the search filter defaults to `(&(objectClass=user)(userPrincipalName={0}))`. The syntax for
-this allows either `{0}` (replaced with `username@domain`) or `{1}` (replaced with `username` only).
-For regular LDAP, only `{0}` is a valid placeholder and it gets replaced with the person's username.
+The search filter syntax allows you to use the placeholder `{0}` which gets replaced with the person's username.
+
+You can also map LDAP DN nodes to Para user groups. For example, with the following configuration:
+```
+para.security.ldap.mods_group_node = "ou=Moderators"
+para.security.ldap.admins_group_node = "cn=Admins"
+```
+LDAP users with a DN `uid=Gordon,ou=Moderators,dc=domain,dc=org` will automatically become part of the `mods` group,
+i.e. `groups: "mods"`. Similarly, if their DN contains `cn=Admins` they will become administrators, i.e. `groups: "admins"`.
+
+### Active Directory LDAP
+
+For **Active Directory** LDAP, the search filter defaults to `(&(objectClass=user)(userPrincipalName={0}))`.
+A good alternative search filter would be `(&(objectClass=user)(sAMAccountName={1}))`. Keep in mind that the domain you
+put in the configuration is actually the UPN suffix which gets appended to the username as `username@domain.com` if
+the supplied login username doesn't end with a domain. The domain has nothing to do with the AD domain or the location
+of the AD server.
+
+The only valid configuration properties for AD are:
+`user_search_filter`, `base_dn`, `server_url` and `active_directory_domain` - everything else is ignored so don't put
+it in the config file at all!
+
+Here's a working LDAP configuration for AD:
+```ini
+para.security.ldap.user_search_filter = "(&(objectClass=user)(sAMAccountName={1}))"
+para.security.ldap.base_dn = "ou=dev,dc=scoold,dc=com"
+para.security.ldap.server_url = "ldap://192.168.123.70:389"
+para.security.ldap.active_directory_domain = "scoold.com"
+```
+
+For the above configuration the following logins should work, given that a user `joe` exists:
+- `joe@scoold.com` + password
+- `joe@some-other-domain.com` + password
+- `joe` + password
+
+As you can see the domain part is actually ignored because it is irrelevant. You cannot bind an AD user with their email.
+You can bind them based on their `username` a.k.a. `sAMAccountName`. If the user has an email address where the alias is
+the same as the `sAMAccountName` but the domain is different, then the login will succeed. If the user above has an email
+`joe.smith@gmail.com` then the login with that email will fail because a bind is not possible,
+and the LDAP search request will return no results.
+
+The syntax for the search filter allows you to use the placeholders `{0}` (replaced with `username@domain`) and `{1}`
+(replaced with `username` only).
+
+Here's an example **Active Directory** configuration (note that any other settings than the ones below will be ignored):
+```ini
+para.security.ldap.server_url = "ldap://server:389"
+para.security.ldap.active_directory_domain = "domain.com"
+para.security.ldap.user_search_filter = "userPrincipalName={0}"
+para.security.ldap.base_dn = "ou=dev,dc=domain,dc=com"
+```
+
+### Local (internal) LDAP authentication
+
+**PRO** Scoold Pro can authenticate users with an internal (local) LDAP server, even if your Para backend is hosted outside
+of your network (like ParaIO.com). This adds an extra layer of security and flexibility and doesn't require a publicly
+accessible LDAP server. To enable this feature, add this to your configuration:
+```
+para.security.ldap.is_local = true
+# required for passwordless authentication with Para
+para.app_secret_key = "change_to_long_random_string"
+```
+Note that the secret key above is **not** the same as your Para secret key! You have to generate a random string for that
+(min. 32 chars).
+
+To print out debug information about LDAP requests, start Para with `-Dlogging.level.org.springframework.ldap=DEBUG`.
+If you are connecting to an internal LDAP server, add the same system property to the Scoold command line.
 
 Please, read the [LDAP docs for Para](https://paraio.org/docs/#030-ldap) to learn more about the settings above.
 
@@ -580,6 +904,59 @@ para.security.saml.domain = "paraio.com"
 para.security.saml.provider = "Continue with SAML"
 ```
 
+Scoold Pro can authenticate users with an internal (local) SAML provider, even if your Para backend is hosted outside of
+your network (like ParaIO.com). This adds an extra layer of security and flexibility and doesn't require your SAML
+endpoints to be publicly accessible. To enable this feature, add this to your configuration:
+```
+para.security.saml.is_local = true
+# required for passwordless authentication with Para
+para.app_secret_key = "change_to_long_random_string"
+```
+Note that the secret key above is **not** the same as your Para secret key! You have to generate a random string for that
+(min. 32 chars).
+
+## Custom authentication (Single Sign-on)
+
+**PRO**
+Para supports custom authentication providers through its "passwordless" filter. This means that you can send any
+user info to Para and it will authenticate that user automatically without passwords. The only verification done here is
+on this secret key value which you provide in your Scoold Pro configuration file:
+```
+para.app_secret_key = "change_to_long_random_string"
+```
+This key is used to protect requests to the passwordless filter and it's different from the Para secret key for your app.
+Here's the basic authentication flow:
+
+1. A user wants to sign in to Scoold Pro and clicks a button
+2. The button redirects the user to a remote login page you or your company set up.
+3. The user enters their credentials and logs in.
+4. If the credentials are valid, you send back a special JSON Web Token (JWT) to Scoold with the user's basic information.
+5. Scoold verifies the token and the user is signed in to Scoold
+
+The JWT must contain the following claims:
+
+- `email` - user's email address
+- `name` - user's display name
+- `identifier` - a unique user id in the format `custom:123`
+- `appid` - the app id (optional)
+
+The JWT is signed with the value of `para.app_secret_key` and should have a short validity period (e.g. 10 min).
+The JWT should also contain the claims `iat` and `exp` and, optionally, `nbf`. Supported signature algorithms for the JWT
+are `HS256`, `HS384` or `HS512`.
+Once you generate the JWT on your backend (step 4 above), redirect the successful login request back to Scoold:
+```
+GET https://scoold-host/signin/success?jwt=eyJhbGciOiJIUzI1NiI..&passwordless=true
+```
+
+The UI button initiating the authentication flow above can be customized like this:
+```
+para.security.custom.provider = "Continue with Acme Co."
+# location of your company's login page
+para.security.custom.login_url = ""
+```
+
+There's an [example login page](https://albogdano.github.io/scoold-login-page/) implementing this sort of authentication.
+
 ## Spaces (a.k.a. Teams)
 
 Spaces are a way to organize users and questions into isolated groups. There's a default space, which is publicly
@@ -612,7 +989,14 @@ create them for you.
 
 Webhooks are enabled by default in Scoold. To disable this functionality set `para.webhooks_enabled = false`. If you
 are self-hosting Para, you need to also enable webhooks there using the same configuration option.
-You can add/remove webhooks in the "Administration" page.
+You can add or remove webhooks in the "Administration" page. Webhooks can also be disabled and they will be
+disabled automatically when the target URL doesn't respond to requests from Para.
+
+Para will notify your target URL with a `POST` request containing the payload and a `X-Webhook-Signature` header. This
+header should be verified by the receiving party by computing `Base64(HmacSHA256(payload, secret))`.
+
+You can subscribe to custom events in Scoold using the REST API. This makes it easy to integrate Scoold with services
+like Zapier because it implements the [RESTHooks](https://resthooks.org/) best practices.
 
 For more details about webhooks, please read the [Para docs on webhooks](https://paraio.org/docs/#011-webhooks).
 
@@ -653,11 +1037,15 @@ This feature is enabled with `para.anonymous_posts_enabled = true`. It allows ev
 replies, without having a Scoold account. Posting to the "Feedback" section will also be open without requiring users
 to sign in. This feature is disabled by default.
 
-## Disabling the "Feedback" section
+Additionally, people may wish to make their profile details anonymous from the Settings page. To allow this option set:
+```
+para.profile_anonimity_enabled = true
+```
 
-**PRO**
-In Scoold PRO you can disable the "Feedback" functionality of the site by setting `para.feedback_enabled = false`.
-This will remove the link to `/feedback` and disable the feature entirely.
+## Enabling the "Feedback" section
+
+You can enable or disable the "Feedback" page where people can discuss topics about the website itself or submit general
+feedback. This section is disabled by default and can be activated with `para.feedback_enabled = true`.
 
 ## LaTeX/MathML support and advanced highlighting
 
@@ -673,15 +1061,44 @@ For example:
     var dict = new Dictionary<string>();
     ```
 
-## Image uploads
+## File uploads
 
 **PRO**
-Image uploads are handled by Imgur. In the future, more upload services could be supported such as S3. To initiate a new
-image upload, open up the Markdown editor and drag'n'drop the image you want to upload. A link will automatically appear
-when the upload is finished. For this feature to work correctly you have to specify your Imgur API client id:
+Files can be uploaded to the local file system, Imgur or S3. File uploads are enabled by default in Scoold Pro.
+To disable file uploads altogether set `para.uploads_enabled = false`.
 
+To upload a file just **drag & drop** the file onto the post editor area. A link will automatically appear
+when the upload is finished. Uploads can fail either because their size is too large or because their format is not in
+the white list of permitted formats (documents, images, archives, audio or video).
+
+Profile pictures (avatars) can also be changed by dragging a new image on top of the existing profile picture on a
+user's `/profile` page. For best results, use a square image here.
+
+### Local storage
+Local file storage is used by default. To configure the directory on the server where files will be stored, set:
+```
+para.file_uploads_dir = "uploads"
+```
+
+### Imgur storage provider
+To use Imgur for storing images, specify your Imgur API client id:
 ```
 para.imgur_client_id = "x23e8t0askdj"
+```
+Keep in mind that *only images* can be uploaded to Imgur and other restrictions may apply.
+
+### AWS S3 storage provider
+To use S3 for file storage, specify the name of the S3 bucket where you want the files to be uploaded. AWS credentials
+and region settings are optional as they can be picked up from the environment automatically.
+```ini
+# required
+para.s3_bucket = ""
+# path within the bucket (object prefix)
+para.s3_path = "uploads"
+# these are optional
+para.s3_region = ""
+para.s3_access_key = ""
+para.s3_secret_key = ""
 ```
 
 ## Slack integration
@@ -707,6 +1124,7 @@ para.slack.post_to_space = "workspace|scooldspace:myspace|default"
 
 para.slack.notify_on_new_question = true
 para.slack.notify_on_new_answer = true
+para.slack.default_question_tags = "via-mattermost"
 ```
 
 Setting `para.slack.map_channels_to_spaces` will ask for additional permissions, namely `channels:read` and `groups:read`.
@@ -763,6 +1181,46 @@ Here are the interactive message actions which are currently implemented:
 These allow you to perform actions from any channel and best of all, these can turn any chat message into a question or
 answer.
 
+If you get an error **"User not authorised to open dialogs"** it means that your Scoold user is not logged in via Slack
+and Scoold doesn't have a Slack access token on record. Simply log into Scoold with Slack and the error should go away.
+
+## Mattermost integration
+
+Scoold **PRO** also integrates with Mattermost. Scoold users can sign in with Mattermost, use slash commands to interact
+with Scoold and also get in-chat notification for mentions and new posts on Scoold. Scoold allows you to map spaces to
+Mattermost teams or channels. By default, each Mattermost team is mapped to a single Scoold space when people sign in
+with Mattermost.
+
+**Important:** Most of the Mattermost operations require a **valid Mattermost ID stored in Scoold** which enables the
+mapping of Mattermost users to Scoold accounts and vice versa. Mattermost IDs are set automatically when a Scoold user
+signs in with Mattermost.
+
+The integration endpoint for Mattermost is `/mattermost` - this is where Scoold will accept and process requests from
+Mattermost. To enable the Mattermost integration you need to enable OAuth 2.0 apps and create one in Mattermost's System
+Console. Then set `para.mm_app_id` and `para.mm_secret`. Follow the [detailed instructions here](https://scoold.com/mattermost.html).
+
+Here are the configuration properties for Mattermost:
+```
+para.mattermost.server_url = "http://localhost:8065"
+para.mattermost.bot_username = "scoold"
+para.mattermost.bot_icon_url = "http://localhost:8000/images/logowhite.png"
+para.mattermost.map_workspaces_to_spaces = true
+para.mattermost.map_channels_to_spaces = false
+para.mattermost.post_to_space = "workspace|scooldspace:myspace|default"
+
+para.mattermost.notify_on_new_question = true
+para.mattermost.notify_on_new_answer = true
+para.mattermost.default_question_tags = "via-mattermost"
+```
+
+**Note:** Mattermost does not support message actions like in Slack. This means that you can't create a question from
+a any chat message. The reply dialog box can be opened from a "Reply" button under each question notification message or
+via the `/scoold answer-form` command.
+The dialog box for new questions is opened via the new slash command `/scoold ask-form`.
+
+All the other slash commands and notifications work just like with Slack and are described above. The Mattermost
+integration will automatically create a slash command for each channel linked to Scoold on the admin page.
+
 ## Self-hosting Para and Scoold through SSL
 
 The recommended way for enabling HTTPS with your own SSL certificate in a self-hosted environment is to run a
@@ -793,8 +1251,8 @@ reverse-proxy server like NGINX in front of Scoold. As an alternative you can us
       server_name www.domain.com domain.com;
 
       # certs sent to the client in SERVER HELLO are concatenated in ssl_certificate
-      ssl_certificate /path/to/signed_cert_plus_intermediates;
-      ssl_certificate_key /path/to/private_key;
+      ssl_certificate /etc/ssl/certs/domain.crt;
+      ssl_certificate_key /etc/ssl/private/domain.key;
       ssl_session_timeout 1d;
       ssl_session_cache shared:SSL:50m;
       ssl_session_tickets off;
@@ -812,19 +1270,20 @@ reverse-proxy server like NGINX in front of Scoold. As an alternative you can us
       ssl_stapling_verify on;
 
       # Verify chain of trust of OCSP response using Root CA and Intermediate certs
-      ssl_trusted_certificate /path/to/root_CA_cert_plus_intermediates;
+      #ssl_trusted_certificate /path/to/root_CA_cert_plus_intermediates;
 
       # Cloudflare DNS
       resolver 1.1.1.1;
 
       # Required for LE certificate enrollment using certbot
-      location '/.well-known/acme-challenge' {
-        default_type "text/plain";
-        root /var/www/html;
-      }
+      # usually certbot would automatically modify this configuration
+      #location '/.well-known/acme-challenge' {
+      #  default_type "text/plain";
+      #  root /var/www/html;
+      #}
 
       location / {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://127.0.0.1:8000;
         proxy_redirect http:// $scheme://;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -834,30 +1293,239 @@ reverse-proxy server like NGINX in front of Scoold. As an alternative you can us
     }
 </details>
 
+## Securing Scoold with SSL using Nginx and Certbot (Let's Encrypt)
+
+First of all, configure the DNS records for your domain to point to the IP address where Scoold is hosted.
+
+1. SSH into your Ubuntu server and install Nginx and Certbot
+```
+sudo apt-get install nginx certbot python-certbot-nginx
+```
+2. Get a certificate and autoconfigure nginx to use it
+```
+sudo certbot --nginx
+```
+3. Turn on the Ubuntu firewall to block port `8000` and only allow ports `80` and `443`.
+```
+ufw allow 'Nginx Full' && sudo ufw enable
+```
+4. Configure nginx to forward requests from the web on ports `80` and `443` to `localhost:8000`
+```
+location / {
+	proxy_pass http://127.0.0.1:8000;
+	proxy_redirect http:// $scheme://;
+	proxy_set_header X-Real-IP $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header X-Forwarded-Proto https;
+	proxy_set_header Host $http_host;
+}
+```
+
+That's it! If the Certbot validation above fails, your DNS is not configured properly or you have conflicting firewall rules.
+Refer to [this article](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04)
+for more details.
+
+## Periodic summary emails (email digest)
+
+**PRO**
+You can choose to enable periodic summary emails for all users in Scoold or allow them to opt-in for these messages.
+By default summary emails are disabled and users can unsubscribe if they are enabled by admins.
+A summary email contains all new questions for a past period of time (daily, weekly). Admins can enable summary emails
+for everyone from the Settings page if `para.summary_email_controlled_by_admins = true`. If that parameter is `false`
+each person (by default) controls whether they want to receive summary emails or not.
+
+The period for which a summary report is generated is controlled by:
+```
+para.summary_email_period_days = 2
+```
+The values of this setting can range from `1` to `30` days, where `2` means "every other day", `7` means "every week".
+The summary email contains a list of the top 25 recent questions. For more questions set `para.summary_email_items = 30`.
+
+## Mentions
+
+**PRO**
+In Scoold Pro you can mention anyone in a question, answer or comment with `@Name`. A popup menu will appear once you
+start typing after `@` giving you a list of names to choose from. The selected user will be mentioned with a special
+mention tag in the form of `@<userID|John Doe>`. You can edit the name part of that tag (after `|`) but nothing else,
+if you want the mention to work. You can mention up to 10 people in a post.
+
+Users can opt-in to receive email notifications when they are mentioned or that can be switched on/off by admins.
+For the latter option set:
+```
+para.mention_emails_controlled_by_admins = true
+```
+
+## Security headers
+
+Scoold attaches several security headers to each response. These can be enabled or disabled with the following configuration
+properties:
+
+```
+# Strict-Transport-Security
+para.hsts_header_enabled = true
+
+# X-Frame-Options
+para.framing_header_enabled = true
+
+# X-XSS-Protection
+para.xss_header_enabled = true
+
+# X-Content-Type-Options
+para.contenttype_header_enabled = true
+
+# Referrer-Policy
+para.referrer_header_enabled = true
+```
+
+## Voting
+
+By default, votes expire after a certain period, meaning the same user can vote again on the same post
+(after 30 days by default). Votes can also be amended within a certain number of seconds (30s by default).
+There are two configurable parameters which allow you to modify the length of those periods:
+```
+para.vote_locked_after_sec = 30
+para.vote_expires_after_sec = 2592000
+```
+
 ## Customizing the UI
 
 There are a number of settings that let you customize the appearance of the website without changing the code.
-```
+```ini
 para.fixed_nav = false
 para.show_branding = true
 para.logo_url = "/logo.svg"
 para.logo_width = 90
-para.stylesheet_url = "/style.css"
+
+# footer HTML - add your own links, etc., escape double quotes with \"
+para.footer_html = "<a href=\"https://my.link\">My Link</a>"
+# show standard footer links
+para.footer_links_enabled = true
+# favicon image location
+para.favicon_url = "/favicon.ico"
+# add your own external stylesheets
+para.external_styles = "https://mydomain.com/style1.css, https://mydomain.com/style2.css"
+# appends extra CSS rules to the main stylesheet
+para.inline_css = ""
+# edit the links in the footer of transactional emails
+para.emails_footer_html = ""
+# change the logo in transactional emails
+para.small_logo_url = "https://scoold.com/logo.png"
 ```
 
-You can set a short welcome message for unauthenticated users which will be displayed on the top of the page:
-```
-para.welcome_message = "Hello and welcome to Scoold!"
+In Scoold Pro you can change the logo of the website just by dragging and dropping a new image of your choice.
+
+If you wish to add just a few simple CSS rules to the `<head>` element, instead of replacing the whole stylesheet,
+simply add them as inline CSS:
+```ini
+para.inline_css = ".scoold-logo { width: 100px; }"
 ```
 
-Alternatively, clone this repository and edit the following:
+You can set a short welcome message for unauthenticated users which will be displayed on the top of the page and it
+can also contain HTML (**use only single quotes or escape double quotes `\\\"`**):
+```ini
+para.welcome_message = "Hello and welcome to <a href='https://scoold.com'>Scoold</a>!"
+```
+You can also set a custom message for users who are already logged in:
+```ini
+para.welcome_message_onlogin = "<h2>Welcome back <img src=\\\"{{user.picture}}\\\" width=30> <b>{{user.name}}</b>!</h2>"
+```
+Here you can use HTML tags and Mustache placeholders to show data from the `Profile` object of the logged in user.
+For a list of available user properties, take a look at the
+[`Profile`](https://github.com/Erudika/scoold/blob/master/src/main/java/com/erudika/scoold/core/Profile.java)
+and [`Sysprop`](https://github.com/Erudika/para/blob/master/para-core/src/main/java/com/erudika/para/core/Sysprop.java)
+classes.
+
+Alternatively, clone this repository and edit the files you want:
 
 - **HTML** templates are in `src/main/resources/templates/`
 - **CSS** stylesheets can be found in `src/main/resources/static/styles/`
-- **JavaScript** files can be found in `src/main/resources/static/scripts`
+- **JavaScript** files can be found in `src/main/resources/static/scripts/`
 - **Images** are in located in `src/main/resources/static/images/`
+- **Themes** are in located in `src/main/resources/themes/`
 
 Also, please refer to the documentation for Spring Boot and Spring MVC.
+
+## Third party cookie consent
+
+Some countries have laws that require explicit cookie consent (e.g. GDPR, CCPA). Scoold can be integrated with Osano's
+cookie consent script to enable the consent popup for compliance with those laws. Here's the configuration which enables
+cookie consent:
+```ini
+para.cookie_consent_required = true
+para.external_styles = "https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css"
+para.external_scripts.bypassconsent1 = "https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"
+para.external_scripts.bypassconsent2 = "d2luZG93LmNvb2tpZWNvbnNlbnQuaW5pdGlhbGlzZSh7CiAgInBhbGV0dGUiOiB7CiAgICAicG9wdXAiOiB7CiAgICAgICJiYWNrZ3JvdW5kIjogIiM0NDQ0NDQiCiAgICB9LAogICAgImJ1dHRvbiI6IHsKICAgICAgImJhY2tncm91bmQiOiAiIzc3Nzc3NyIKICAgIH0KICB9LAogICJ0aGVtZSI6ICJjbGFzc2ljIiwKICAicG9zaXRpb24iOiAiYm90dG9tLWxlZnQiLAogICJ0eXBlIjogIm9wdC1pbiIsCiAgIm9uU3RhdHVzQ2hhbmdlIjogZnVuY3Rpb24ocyl7bG9jYXRpb24ucmVsb2FkKCk7fQp9KTs="
+```
+That last snippet of code is the Base64-encoded initialization of the cookie consent script:
+```js
+window.cookieconsent.initialise({
+  "palette": {
+    "popup": {
+      "background": "#444444"
+    },
+    "button": {
+      "background": "#777777"
+    }
+  },
+  "theme": "classic",
+  "position": "bottom-left",
+  "type": "opt-in",
+  "onStatusChange": function(s){location.reload();}
+});
+```
+You can customize the above snippet however you like from [Osano's download page (Start coding link)](https://www.osano.com/cookieconsent/download/).
+After you customize the snippet, it is important that you add `"onStatusChange": function(s){location.reload();}` at the end.
+
+**Enabling cookie consent will automatically disable all external scripts and Google Analytics,
+until the user gives their explicit consent.**
+
+Note: Any other script can be used instead, as long as it set a cookie `cookieconsent_status = "allow"`.
+
+## REST API
+
+The REST API can be enabled with the following configuration:
+```ini
+para.api_enabled = true
+# A random string min. 32 chars long
+para.app_secret_key = "change_to_long_random_string"
+```
+The API can be accessed from `/api/*` and the OpenAPI documentation and console are located at `/apidocs`.
+API keys can be generated from the "Administration" page and can be made to expire after a number of hours or never
+(validity period = 0). Keys are in the JWT format and signed with the secret defined in `para.app_secret_key`.
+API keys can also be generated with any JWT library. The body of the key should contain the `iat`, `appid` and `exp`
+claims and must be signed with the secret `para.app_secret_key`.
+
+You can use the public endpoint `http://localhost:8000/api` to check the health of the server. A `GET /api` will
+return `200` if the server is healthy and connected to Para, otherwise status code `500` is returned.
+The response body is similar to this:
+```
+{
+  "healthy": true,
+  "message": "Scoold API, see docs at http://localhost:8000/apidocs",
+	"pro": false
+}
+```
+
+API clients can be auto-generated using [Swagger Codegen](https://github.com/swagger-api/swagger-codegen). You can
+also open the API schema file `src/main/resources/static/api.yaml` in [the Swagger Editor](https://editor.swagger.io/)
+and generate the clients from there.
+
+## Support
+
+You can get support here by submitting an issue. Also you can head over to the Gitter chat room for help.
+Issues related to **Scoold Pro** must be reported to [Erudika/scoold-pro](https://github.com/Erudika/scoold-pro/issues).
+[Paid/priority support is also available](https://erudika.com/#support).
+
+## Getting help
+
+- Have a question? - [ask it on Gitter](https://gitter.im/Erudika/scoold)
+- Found a bug? - submit a [bug report here](https://github.com/Erudika/scoold/issues)
+- Ask a question on Stack Overflow using the [`scoold`](https://stackoverflow.com/tags/scoold/info) tag
+- For questions related to Para, use the [`para`](https://stackoverflow.com/tags/para/info) tag on Stack Overflow
+
+## Blog
+
+### [Read more about Scoold on our blog](https://erudika.com/blog/tags/scoold/)
 
 ## Translating Scoold
 
@@ -913,20 +1581,8 @@ where "xx" is the language code for your locale. Finally, open a pull request he
 **Ukrainian** | [lang_uk.properties](src/main/resources/lang_uk.properties) | 0%
 **Vietnamese** | [lang_vi.properties](src/main/resources/lang_vi.properties) | 0%
 
-
-## Scoold API
-
-**The REST API is a work in progress.** The API can be accessed from `/api` and the Swagger documentation and console
-are located at `/api.html`.
-
-You can use the public endpoint `/api` to check the health of the server. A `GET /api` will return `200` if the server
-is healthy and connected to Para, otherwise status code `500` is returned. The response body is similar to this:
-```
-{
-  "healthy": true,
-  "message": "Scoold API, see docs at http://localhost:8000/api.html"
-}
-```
+You can also change the default language of Scoold for all users by setting `para.default_language_code = "en"`, where
+instead of "en" you enter the 2-letter code of the language of your choice.
 
 ## Building Scoold
 
@@ -941,15 +1597,10 @@ To run a local instance of Scoold for development, use:
 $ mvn -Dconfig.file=./application.conf spring-boot:run
 ```
 
-## Support
-
-You can get support here by submitting an issue. Also you can head over to the Gitter chat room for help.
-Issues related to **Scoold Pro** must be reported to [Erudika/scoold-pro](https://github.com/Erudika/scoold-pro/issues).
-[Paid/priority support is also available](https://erudika.com/#support).
-
-## Blog
-
-### [Read more about Scoold on our blog](https://erudika.com/blog/tags/scoold/)
+To generate a WAR package, run:
+```sh
+$ mvn -Pwar package
+```
 
 ## Contributing
 

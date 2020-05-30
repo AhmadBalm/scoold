@@ -2,7 +2,8 @@
 	<div class="col s12 m6 l4">
 		<div class="card">
 			<div class="card-image">
-				<img src="#profilepic($showUser)" class="profile-pic">
+				<img src="#profilepic($showUser)" id="profile_${showUser.creatorid}" class="profile-pic on-profile-page">
+				#if($canEdit)
 				<span class="card-title">
 					#if($showUser.user.identifier.startsWith("fb"))
 						<i class="fa fa-facebook fa-2x" title="Facebook"></i>
@@ -18,12 +19,15 @@
 						<i class="fa fa-windows fa-2x" title="Microsoft"></i>
 					#elseif($showUser.user.identifier.startsWith("sl"))
 						<i class="fa fa-slack fa-2x" title="Slack"></i>
+					#elseif($showUser.user.identifier.startsWith("az"))
+						<i class="fa fa-amazon fa-2x" title="Amazon"></i>
 					#elseif($showUser.user.identifier.startsWith("oa2"))
 						<i class="fa fa-openid fa-2x" title="OAuth 2.0"></i>
 					#elseif($showUser.user.identifier.startsWith("ldap"))
 						<i class="fa fa-id-card-o fa-2x" title="LDAP"></i>
 					#end
 				</span>
+				#end
 			</div>
 			<div class="card-content center-align">
 				#if ($canEdit && $canEditAvatar)
@@ -41,6 +45,7 @@
 								#set($secondaryPicture = $!gravatarPicture)
 							#end
 							<input type="hidden" value="$!secondaryPicture">
+							<a href="#" id="clear-avatar-btn">$!lang.get('clear')</a>
 						</div>
 						<div class="switch right">
 							<label>
@@ -80,7 +85,7 @@
 					</div>
 				</div>
 			</div>
-			#if($showUser.website && !$showUser.website.isEmpty())
+			#if($showUser.website && !$showUser.website.isEmpty() && !$showUser.anonymityEnabled)
 				<div class="card-action card-website center-align truncate">
 					<a href="$!showUser.website" class="blue-text">$!showUser.website.substring($!showUser.website.indexOf("/") + 2)</a>
 				</div>
@@ -90,14 +95,14 @@
 		<div class="mvm center-align">
 			#getreportlink($showUser "$profilelink/$!showUser.creatorid" "chip")
 			#if ($isAdmin)
-				#if ($showUser.groups == "mods")#set($hidemakemod = "hide")#else#set($unhidemakemod = "hide")#end
-				<a href="$profilelink/$showUser.creatorid/?makemod=false" class="chip make-mod-btn $!{unhidemakemod}">
-					<i class="fa fa-chevron-down"></i> Unmake mod
-				</a>
-				<a href="$profilelink/$showUser.creatorid/?makemod=true" class="chip make-mod-btn $!{hidemakemod}">
-					<i class="fa fa-chevron-up"></i> Make mod
-				</a>
-				<a href="${adminlink}?delete=profile&id=$showUser.id" title="Delete user account" class="red chip white-text">
+				#if(!$scooldUtils.isAdmin($showUser))
+					<a href="$profilelink/$showUser.creatorid/make-mod" class="chip make-mod-btn">
+						#if ($showUser.groups == "mods")#set($hidemakemod = "hide")#else#set($unhidemakemod = "hide")#end
+							<span class="$!{unhidemakemod}"><i class="fa fa-chevron-down"></i> Unmake mod</span>
+							<span class="$!{hidemakemod}"><i class="fa fa-chevron-up "></i> Make mod</span>
+					</a>
+				#end
+				<a href="${adminlink}?delete=profile&id=$showUser.id&returnto=$peoplelink" title="Delete user account" class="red chip white-text">
 					<i class="fa fa-close"></i> $!lang.get("delete")
 				</a>
 			#end
@@ -109,7 +114,7 @@
 		<div class="aboutme">
 			<div class="row valign-wrapper">
 				<div class="col s8">
-					<h2>$!{lang.get("profile.about.title")}</h2>
+					<h3>$!{lang.get("profile.about.title")}</h3>
 				</div>
 				<div class="col s4 r">
 						#if ($canEdit)
@@ -128,10 +133,10 @@
 			#end
 
 			<div class="viewbox ${hideview1}">
-				#if ($showUser.aboutme && !$showUser.aboutme.isEmpty())
+				#if ($showUser.aboutme && !$showUser.aboutme.isEmpty() && !$showUser.anonymityEnabled)
 					<h4 class="black-text pbs">$!{showUser.aboutme}</h4>
 				#end
-				#if ($showUser.location && !$showUser.location.isEmpty())
+				#if ($showUser.location && !$showUser.location.isEmpty() && !$showUser.anonymityEnabled)
 					<h4 class="pvs"><i class="fa fa-map-marker grey-text text-darken-1"></i>&nbsp;
 						<span class="black-text">$!{showUser.location}</span></h4>
 				#end
@@ -150,7 +155,6 @@
 				#end
 				#if ($showUser.hasSpaces())
 					<h5 class="grey-text text-darken-1 pvs"><i class="fa fa-th-large"></i> &nbsp;
-						#if(!$showUser.hasSpaces())default#end
 						#foreach($space in $showUser.spaces)
 							#set($spaceString = $scooldUtils.getSpaceName($space))
 							${spaceString}#if($foreach.count < $showUser.spaces.size()),#end
@@ -174,7 +178,7 @@
 			</div>
 
 			#if ($canEdit)
-			<div id="about-edit" class="editbox lightgraybg pal ${hideedit1}">
+			<div id="about-edit" class="editbox lightgraybg ${hideedit1}">
 				<form method="post" id="about-edit-form" action="$profilelink/$!showUser.creatorid">
 					#sectoken(false)
 					#if($nameEditsAllowed)
@@ -187,6 +191,7 @@
 
 					<div class="input-field">
 						<i class="fa fa-map-marker prefix"></i>
+						<input type="hidden" name="latlng" value="$!{authUser.latlng}">
 						<input id="location_text" name="location" class="locationbox validate" type="text" value="$!{showUser.location}"
 									 placeholder="$!{lang.get('profile.about.location')}">
 					</div>
@@ -230,14 +235,14 @@
 	#if (!$questionslist.isEmpty())
 	<div id="questions" class="col s12">
 		<div class="mvm">
-				#paginate("\#questionspage(\$questionslist)" $itemcount1 "" "page1")
+				#paginate("questions" $itemcount1 "" "page1")
 		</div>
 	</div>
 	#end
 	#if (!$answerslist.isEmpty())
 	<div id="answers" class="col s12">
 		<div class="mvm">
-			#paginate("\#compactanswerspage(\$answerslist)" $itemcount2 "" "page2")
+			#paginate("compactanswers" $itemcount2 "" "page2")
 		</div>
 	</div>
 	#end

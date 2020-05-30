@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,10 +34,12 @@ import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.validator.constraints.URL;
@@ -47,6 +49,7 @@ public class Profile extends Sysprop {
 	private static final long serialVersionUID = 1L;
 
 	@Stored private String originalName;
+	@Stored private String originalPicture;
 	@Stored private Long lastseen;
 	@Stored private String location;
 	@Stored private String latlng;
@@ -63,6 +66,8 @@ public class Profile extends Sysprop {
 	@Stored private Set<String> spaces;
 	@Stored private Boolean replyEmailsEnabled;
 	@Stored private Boolean commentEmailsEnabled;
+	@Stored private Boolean favtagsEmailsEnabled;
+	@Stored private Boolean anonymityEnabled;
 	@Stored private Integer yearlyVotes;
 	@Stored private Integer quarterlyVotes;
 	@Stored private Integer monthlyVotes;
@@ -76,7 +81,6 @@ public class Profile extends Sysprop {
 		VETERAN(10),		//regular visitor		//NOT IMPLEMENTED
 
 		NICEPROFILE(10),	//100% profile completed
-		TESTER(0),			//for testers only
 		REPORTER(0),		//for every report
 		VOTER(0),			//100 total votes
 		COMMENTATOR(0),		//100+ comments
@@ -95,8 +99,7 @@ public class Profile extends Sysprop {
 		GOODANSWER(10),		//10+ votes
 		EUREKA(0),			//for every answer to own question
 		SENIOR(0),			//one year + member
-		DISCIPLINED(0),		//each time user deletes own comment
-		POLYGLOT(5);		//for every approved translation
+		DISCIPLINED(0);		//each time user deletes own comment
 
 		private final int reward;
 
@@ -136,6 +139,8 @@ public class Profile extends Sysprop {
 		this.quarterlyVotes = 0;
 		this.monthlyVotes = 0;
 		this.weeklyVotes = 0;
+		this.anonymityEnabled = false;
+		this.favtagsEmailsEnabled = false;
 		this.replyEmailsEnabled = Config.getConfigBoolean("reply_emails_enabled", false);
 		this.commentEmailsEnabled = Config.getConfigBoolean("comment_emails_enabled", false);
 	}
@@ -148,7 +153,28 @@ public class Profile extends Sysprop {
 		}
 	}
 
-	private ParaClient client() {
+	public static Profile fromUser(User u) {
+		Profile p = new Profile(u.getId(), u.getName());
+		p.setUser(u);
+		p.setOriginalName(u.getName());
+		p.setPicture(u.getPicture());
+		p.setAppid(u.getAppid());
+		p.setCreatorid(u.getId());
+		p.setTimestamp(u.getTimestamp());
+		p.setGroups(ScooldUtils.getInstance().isRecognizedAsAdmin(u)
+				? User.Groups.ADMINS.toString() : u.getGroups());
+		// auto-assign spaces to new users
+		String space = Config.getConfigParam("auto_assign_spaces", "");
+		if (!StringUtils.isBlank(space) && !ScooldUtils.getInstance().isDefaultSpace(space)) {
+			Sysprop s = client().read(ScooldUtils.getInstance().getSpaceId(space));
+			if (s != null) {
+				p.getSpaces().add(s.getId() + Config.SEPARATOR + s.getName());
+			}
+		}
+		return p;
+	}
+
+	private static ParaClient client() {
 		return ScooldUtils.getInstance().getParaClient();
 	}
 
@@ -207,6 +233,22 @@ public class Profile extends Sysprop {
 
 	public void setCommentEmailsEnabled(Boolean commentEmailsEnabled) {
 		this.commentEmailsEnabled = commentEmailsEnabled;
+	}
+
+	public Boolean getFavtagsEmailsEnabled() {
+		return favtagsEmailsEnabled;
+	}
+
+	public void setFavtagsEmailsEnabled(Boolean favtagsEmailsEnabled) {
+		this.favtagsEmailsEnabled = favtagsEmailsEnabled;
+	}
+
+	public Boolean getAnonymityEnabled() {
+		return anonymityEnabled;
+	}
+
+	public void setAnonymityEnabled(Boolean anonymityEnabled) {
+		this.anonymityEnabled = anonymityEnabled;
 	}
 
 	public String getGroups() {
@@ -347,6 +389,14 @@ public class Profile extends Sysprop {
 		this.originalName = originalName;
 	}
 
+	public String getOriginalPicture() {
+		return originalPicture;
+	}
+
+	public void setOriginalPicture(String originalPicture) {
+		this.originalPicture = originalPicture;
+	}
+
 	@SuppressWarnings("unchecked")
 	public List<Question> getAllQuestions(Pager pager) {
 		if (getId() == null) {
@@ -399,6 +449,16 @@ public class Profile extends Sysprop {
 		return !getSpaces().isEmpty();
 	}
 
+	public void removeSpace(String space) {
+		String sid = ScooldUtils.getInstance().getSpaceId(space);
+		Iterator<String> it = getSpaces().iterator();
+		while (it.hasNext()) {
+			if (it.next().startsWith(sid + Config.SEPARATOR)) {
+				it.remove();
+			}
+		}
+	}
+
 	public long getTotalVotes() {
 		if (upvotes == null) {
 			upvotes = 0L;
@@ -446,7 +506,8 @@ public class Profile extends Sysprop {
 	}
 
 	private void updateVoteGains(int rep) {
-		LocalDateTime lastUpdate = LocalDateTime.ofInstant(Instant.ofEpochMilli(getUpdated()), ZoneId.systemDefault());
+		Long updated = Optional.ofNullable(getUpdated()).orElse(Utils.timestamp());
+		LocalDateTime lastUpdate = LocalDateTime.ofInstant(Instant.ofEpochMilli(updated), ZoneId.systemDefault());
 		LocalDate now = LocalDate.now();
 		if (now.getYear() != lastUpdate.getYear()) {
 			yearlyVotes = rep;
@@ -542,6 +603,7 @@ public class Profile extends Sysprop {
 	public void delete() {
 		client().delete(this);
 		client().delete(getUser());
+		ScooldUtils.getInstance().unsubscribeFromAllNotifications(this);
 	}
 
 	public int countNewReports() {

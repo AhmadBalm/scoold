@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import com.erudika.para.core.Sysprop;
 import com.erudika.para.core.User;
 import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Utils;
-import static com.erudika.scoold.ScooldServer.HOMEPAGE;
 import static com.erudika.scoold.ScooldServer.MAX_FAV_TAGS;
 import com.erudika.scoold.core.Profile;
 import com.erudika.scoold.utils.ScooldUtils;
@@ -40,6 +39,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import static com.erudika.scoold.ScooldServer.SIGNINLINK;
 import static com.erudika.scoold.ScooldServer.SETTINGSLINK;
+import com.erudika.scoold.utils.HttpUtils;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -59,7 +60,7 @@ public class SettingsController {
 	@GetMapping
 	public String get(HttpServletRequest req, Model model) {
 		if (!utils.isAuthenticated(req)) {
-			return "redirect:" + HOMEPAGE;
+			return "redirect:" + SETTINGSLINK;
 		}
 		model.addAttribute("path", "settings.vm");
 		model.addAttribute("title", utils.getLang(req).get("settings.title"));
@@ -72,31 +73,25 @@ public class SettingsController {
 	public String post(@RequestParam(required = false) String tags, @RequestParam(required = false) String latlng,
 			@RequestParam(required = false) String replyEmailsOn, @RequestParam(required = false) String commentEmailsOn,
 			@RequestParam(required = false) String oldpassword, @RequestParam(required = false) String newpassword,
-			@RequestParam(required = false) String newpostEmailsOn, HttpServletRequest req) {
+			@RequestParam(required = false) String newpostEmailsOn, @RequestParam(required = false) String favtagsEmailsOn,
+			HttpServletRequest req, HttpServletResponse res) {
 		if (utils.isAuthenticated(req)) {
 			Profile authUser = utils.getAuthUser(req);
-			if (!StringUtils.isBlank(tags)) {
-				Set<String> ts = new LinkedHashSet<String>();
-				for (String tag : tags.split(",")) {
-					if (!StringUtils.isBlank(tag) && ts.size() <= MAX_FAV_TAGS) {
-						ts.add(tag);
-					}
-				}
-				authUser.setFavtags(new LinkedList<String>(ts));
-			}
+			setFavTags(authUser, tags);
 			if (!StringUtils.isBlank(latlng)) {
 				authUser.setLatlng(latlng);
 			}
+			setAnonymity(authUser, req.getParameter("anon"));
+			setDarkMode(authUser, req.getParameter("dark"), req, res);
 			authUser.setReplyEmailsEnabled(Boolean.valueOf(replyEmailsOn));
 			authUser.setCommentEmailsEnabled(Boolean.valueOf(commentEmailsOn));
+			authUser.setFavtagsEmailsEnabled(Boolean.valueOf(favtagsEmailsOn));
 			authUser.update();
 
-			if (utils.isAdmin(authUser)) {
-				if (Boolean.valueOf(newpostEmailsOn)) {
-					utils.subscribeToNewPosts(authUser.getUser());
-				} else {
-					utils.unsubscribeFromNewPosts(authUser.getUser());
-				}
+			if (Boolean.valueOf(newpostEmailsOn)) {
+				utils.subscribeToNewPosts(authUser.getUser());
+			} else {
+				utils.unsubscribeFromNewPosts(authUser.getUser());
 			}
 
 			if (resetPasswordAndUpdate(authUser.getUser(), oldpassword, newpassword)) {
@@ -128,5 +123,48 @@ public class SettingsController {
 			}
 		}
 		return false;
+	}
+
+	private void setFavTags(Profile authUser, String tags) {
+		if (!StringUtils.isBlank(tags)) {
+			Set<String> ts = new LinkedHashSet<String>();
+			for (String tag : tags.split(",")) {
+				if (!StringUtils.isBlank(tag) && ts.size() <= MAX_FAV_TAGS) {
+					ts.add(tag);
+				}
+			}
+			authUser.setFavtags(new LinkedList<String>(ts));
+		} else {
+			authUser.setFavtags(null);
+		}
+	}
+
+	private void setAnonymity(Profile authUser, String anonParam) {
+		if ("true".equalsIgnoreCase(anonParam)) {
+			anonymizeProfile(authUser);
+		} else if (authUser.getAnonymityEnabled()) {
+			deanonymizeProfile(authUser);
+		}
+	}
+
+	private void setDarkMode(Profile authUser, String darkParam, HttpServletRequest req, HttpServletResponse res) {
+		if ("true".equalsIgnoreCase(darkParam)) {
+			HttpUtils.setRawCookie("dark-mode", "1", req, res, false, (int) TimeUnit.DAYS.toSeconds(2 * 365L));
+		} else {
+			HttpUtils.removeStateParam("dark-mode", req, res);
+		}
+	}
+
+	private void anonymizeProfile(Profile authUser) {
+		authUser.setName("Anonymous");
+		authUser.setOriginalPicture(authUser.getPicture());
+		authUser.setPicture(utils.getGravatar(authUser.getId() + "@scooldemail.com"));
+		authUser.setAnonymityEnabled(true);
+	}
+
+	private void deanonymizeProfile(Profile authUser) {
+		authUser.setName(authUser.getOriginalName());
+		authUser.setPicture(authUser.getOriginalPicture());
+		authUser.setAnonymityEnabled(false);
 	}
 }

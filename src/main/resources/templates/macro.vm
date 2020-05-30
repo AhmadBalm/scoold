@@ -11,8 +11,11 @@
 		<div class="row">
 			<div class="col s10">
 				<div class="input-field">
-					<input type="text" name="comment" value="" data-length="$!maxCommentLength" class="validate" required>
-					<label data-error="$!maxCommentLengthError" data-success="&check;">$!lang.get('comment.title')</label>
+					#set($maxplus1 = $!maxCommentLength + 1)
+					<label for="new-comment-$!{parentid}">$!lang.get('comment.title')</label>
+					<input id="new-comment-$!{parentid}" type="text" name="comment" value=""
+								 data-length="$!maxCommentLength" maxlength="$!maxplus1" class="validate charcounter" required>
+					<span class="helper-text" data-error="$!maxCommentLengthError"></span>
 				</div>
 				<input type="hidden" name="parentid" value="$!parentid">
 			</div>
@@ -37,7 +40,8 @@
 
 	<div class="mbs ${hidden}">
 		#votebox($showcomment "left mrm pbs")
-		<span class="comment-text">$!showcomment.comment</span>
+		#set($_commentHtml = $utils.markdownToHtml($!showcomment.comment))
+		<span class="comment-text">$!{_commentHtml}</span>
 		#set($commentAuthor = {'name': $!showcomment.authorName, 'id': $showcomment.creatorid})
 		&mdash;
 		<span class="comment-author">#personlink($commentAuthor)</span>&nbsp;
@@ -90,7 +94,7 @@
 			#if(!$webhook.active)#set($showInactiveWebhook = "")#else #set($showInactiveWebhook = "hide")#end
 			<a href="$adminlink/toggle-webhook?id=$!webhook.id" class="tooltipped toggle-webhook ${showActiveWebhook}" data-tooltip="Deactivate"><i class="fa fa-circle green-text"></i></a>
 			<a href="$adminlink/toggle-webhook?id=$!webhook.id" class="tooltipped toggle-webhook ${showInactiveWebhook}" data-tooltip="Activate"><i class="fa fa-circle red-text"></i></a>
-			<span class="">$!webhook.targetUrl</span>
+			<span class="mrm">$!webhook.targetUrl</span>
 			#if($webhook.create)
 				<span class="chip"><tt>create</tt></span>
 			#end
@@ -110,7 +114,10 @@
 				<span class="chip"><tt>deleteAll</tt></span>
 			#end
 			#if($webhook.typeFilter)
-				<span class="chip"><tt><i class="fa fa-cube gray"></i> $!webhook.typeFilter</tt></span>
+				<span class="chip"><tt><i class="fa fa-filter gray"></i> $!webhook.typeFilter</tt></span>
+			#end
+			#foreach($event in $webhook.customEvents)
+				<span class="chip"><tt>$!event</tt></span>
 			#end
 			#if(!$webhook.urlEncoded)
 				<span class="chip" title="application/json"><tt>{JSON}</tt></span>
@@ -153,7 +160,11 @@
 ################# PAGINATION #####################
 #macro(paginate $macroCode $pager $_rpath $pageparam)
 #if($pager && $pager.count > 0)
-	#if ($pager && $pager.page > 1000) #set($next = 1) #else #set($next = $pager.page + 1) #end
+	#set($pageCount = ($pager.count / $pager.limit))
+	#if($pager.count % $pager.limit > 0) #set($pageCount = $pageCount + 1) #end
+	#if($pageCount > $MAX_PAGES)#set($pageCount = $MAX_PAGES)#end
+	#if ($pager.page <= 1) #set($prev = 1) #else #set($prev = $pager.page - 1) #end
+
 	#if(!$_rpath || $_rpath.isEmpty())
 		#if($request.queryString)
 			#set($_rpath = "$!{request.requestURI}?$!{request.queryString}")
@@ -161,34 +172,82 @@
 			#set($_rpath = "$!{request.requestURI}")
 		#end
 	#end
-	<div class="page-content">#evaluate($macroCode)</div>
-	#if ($pager.count && $pager.count > $pager.limit && $macroCode && !$macroCode.trim().isEmpty())
-	<div class="pages center mtl">
-		#if ($_rpath.contains("?"))
-			<a href="${_rpath}&${pageparam}=$!next" class="more-link pagelink chip" title="Load more">$!lang.get("more")</a>
-		#else
-			<a href="${_rpath}?${pageparam}=$!next" class="more-link pagelink chip" title="Load more">$!lang.get("more")</a>
-		#end
-		<span class="hide page-macro-code">$!macroCode</span>
-		<span class="$!{next}"></span>
-	</div>
+	#set($rexp = "${pageparam}=(\d+|&amp;)+")
+	#set($_rpath = $_rpath.replaceAll($rexp, ""))
+	#set($_rpath = $_rpath.replaceAll("(&amp;|&|\?)$", ""))
+	<div class="page-content">#evaluate($scooldUtils.getMacroCode($macroCode))</div>
+	#if ($_rpath.contains("?"))#set($paramseparator = "&")#else #set($paramseparator = "?")#end
+	#if ($pager.count > $pager.limit && $macroCode && !$macroCode.trim().isEmpty())
+		<div class="pages center mtl">
+			#if($numericPaginationEnabled)
+				#set($maxPageLinks = 7)
+				#set($activeClass = "active light-blue")
+				#if ($pager.page >= $pageCount) #set($next = 1) #else #set($next = $pager.page + 1) #end
+				<ul class="pagination ptl">
+					<li><a href="${_rpath}${paramseparator}${pageparam}=$!prev"><i class="fa fa-chevron-left grey-text"></i></a></li>
+					#if($pager.page <= $maxPageLinks)
+						#set($startPage = 1)
+						#if($pageCount < $maxPageLinks)#set($endPage = $pageCount)#else#set($endPage = $maxPageLinks)#end
+						#foreach($page in [$startPage..$endPage])
+							#if($page == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+							<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=$!page">$!page</a></li>
+						#end
+						#if($pageCount > $maxPageLinks)
+							<i class="fa fa-ellipsis-h pvm phm"></i>
+							#if($pageCount == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+							<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=$pageCount">$pageCount</a></li>
+						#end
+					#elseif($pager.page > $maxPageLinks && $pager.page < ($pageCount - $maxPageLinks))
+						#set($startPage = $pager.page - ($maxPageLinks / 2))
+						#set($endPage = $pager.page + ($maxPageLinks / 2))
+						#if(1 == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+						<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=1">1</a></li>
+						<i class="fa fa-ellipsis-h pvm phm"></i>
+						#foreach($page in [$startPage..$endPage])
+							#if($page == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+							<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=$!page">$!page</a></li>
+						#end
+						<i class="fa fa-ellipsis-h pvm phm"></i>
+						#if($pageCount == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+						<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=$pageCount">$pageCount</a></li>
+					#else
+						#if(1 == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+						<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=1">1</a></li>
+						<i class="fa fa-ellipsis-h pvm phm"></i>
+						#set($startPage = $pageCount - $maxPageLinks)
+						#set($endPage = $pageCount)
+						#foreach($page in [$startPage..$endPage])
+							#if($page == $pager.page)#set($currPage = $activeClass)#else#set($currPage = "")#end
+							<li class="waves-effect ${currPage}"><a href="${_rpath}${paramseparator}${pageparam}=$!page">$!page</a></li>
+						#end
+					#end
+					<li><a href="${_rpath}${paramseparator}${pageparam}=$!next"><i class="fa fa-chevron-right grey-text"></i></a></li>
+				</ul>
+			#else
+				#set($next = $pager.page + 1)
+				<a href="${_rpath}${paramseparator}${pageparam}=$!next" class="more-link pagelink chip" title="Load more">$!lang.get("more")</a>
+				<span class="hide page-macro-code">$!macroCode</span>
+				<span class="$!{next}"></span>
+			#end
+		</div>
 	#end
 #end
 #end
 ####################################
 #macro(smallpersonbox $showu)
-<div class="row mbn userbox user-$!{showu.id}">
+#if($showu)#set($userboxid = "$!{showu.id}")#else#set($userboxid = "")#end
+<div class="row mbn userbox user-${userboxid}">
 	<div class="col s4 m5 l3">
 		#if ($showu)
 			<a href="$profilelink/$!showu.creatorid/#stripstr($!showu.name)" title="$!showu.name">
 				<img src="#profilepic($!showu)" width="50" class="profile-pic responsive-img">
 			</a>
 		#else
-			<img src="https://www.gravatar.com/avatar/?size=50&d=mm" width="50" class="responsive-img" alt="Profile picture">
+			<img src="$!imageslink/anon.svg" width="50" class="responsive-img" alt="Profile picture">
 		#end
 	</div>
 	<div class="col s8 m7 l9">
-		<div class="right">
+		<div class="right prm">
 			#if($showu && $showu.id)
 				#set($contextboxid = $utils.generateSecurityToken(10, true))
 				<a class="dropdown-trigger grey-text" href="#" data-target="$contextboxid"><i class="fa fa-ellipsis-v"></i></a>
@@ -201,7 +260,7 @@
 			#if ($showu)
 				<a href="$profilelink/$!showu.creatorid/#stripstr($!showu.name)" class="smallText">$showu.name</a>
 			#else
-				<span class="mediumText grey-text">$!lang.get("profile.deleted")</span>
+				<span class="grey-text">$!lang.get("profile.deleted")</span>
 			#end
 			#if ($showu)
 				<br>
@@ -228,7 +287,7 @@
 			<img src="#profilepic($!showu)" width="32" class="profile-pic responsive-img">
 		</a>
 	#else
-		<img src="https://www.gravatar.com/avatar/?size=50&d=mm" width="32" class="responsive-img" alt="Profile picture">
+		<img src="$!imageslink/anon.svg" width="32" class="responsive-img" alt="Profile picture">
 	#end
 </div>
 #end
@@ -258,7 +317,7 @@
 #macro(peoplepage $people)
 	#foreach($showFriend in $people)
 	<div class="col s12 m6 l4">
-		<div class="card">
+		<div class="card personbox">
 			<div class="row user-card">
 				<div class="col s3 m4" title="$!showFriend.name">
 					<a href="$profilelink/$!showFriend.creatorid/#stripstr($!showFriend.name)" title="$!showFriend.name">
@@ -267,7 +326,7 @@
 				</div>
 				<div class="col s9 m8">
 					#if(!$isAdmin)
-					<div class="right mrm">
+					<div class="right prm ptm">
 						#set($contextboxid = $utils.generateSecurityToken(10, true))
 						<a class="dropdown-trigger grey-text" href="#" data-target="$contextboxid"><i class="fa fa-ellipsis-v"></i></a>
 						<ul id="${contextboxid}" class="dropdown-content">
@@ -275,7 +334,7 @@
 						</ul>
 					</div>
 					#end
-					<div class="mediumText pts">
+					<div class="person-name pts">
 						#if($isAdmin && $request.getParameter("bulkedit"))
 							<span class="grey-text l">
 								<label for="$!showFriend.id">
@@ -292,14 +351,16 @@
 					#if($isAdmin && $request.getParameter("bulkedit"))
 						<div class="smallText">
 							<i class="fa fa-th-large grey-text"></i>
-							#if(!$showFriend.hasSpaces())default#end
+							#if(!$showFriend.hasSpaces())$!lang.get('defaultspace')#end
 							#foreach($space in $showFriend.spaces)
 								#set($spaceString = $scooldUtils.getSpaceName($space))
 								${spaceString}#if($foreach.count < $showFriend.spaces.size()),#end
+								#set($spaceId = $scooldUtils.getSpaceId($space))
+								<input type="hidden" name="user-space-ids" value="$!{spaceId}">
 							#end
 						</div>
 					#end
-					<span class="chip mtm" title="$!lang.get('reputation')">$utils.abbreviateInt($!showFriend.votes, 0)</span>
+					<span class="chip mts" title="$!lang.get('reputation')">$utils.abbreviateInt($!showFriend.votes, 0)</span>
 					#if($showFriend.badges && $showFriend.badgesMap && $showFriend.badgesMap.size() > 0)
 						$showFriend.badgesMap.size() <i class="fa fa-star yellow-text text-darken-3"></i>
 					#end
@@ -309,9 +370,11 @@
 					#if ($showFriend.groups == "mods")
 					<i class="fa fa-dot-circle-o orange-text mhs tooltipped" data-delay="0" data-tooltip="$!lang.get('mod')"></i>
 					#end
-					<div class="grey-text r prl tooltipped" data-position="top" data-tooltip="$!{lang.get('profile.about.lastseen')}">
+					#if($showFriend.lastseen)
+					<div class="grey-text r prm tooltipped lastseen" data-position="top" data-tooltip="$!{lang.get('profile.about.lastseen')}">
 						<i class="fa fa-clock-o"></i> #formatdate($!{showFriend.lastseen} "")
 					</div>
+					#end
 				</div>
 			</div>
 		</div>
@@ -334,106 +397,170 @@
 #end
 ####################################
 #macro(questionspage $posts )
-	#foreach($post in $posts)
-		#questionbox($post)
+	#set($showSpaceLabel = $scooldUtils.isAllSpaces($currentSpace) || $isMod)
+	#foreach($showpost in $posts)
+	#set($actionlink = "#getpostlink($showpost false true)")
+	#set($actionlink2 = "#getpostlink($showpost true true)")
+	#if($showpost.id == $request.getParameter("deleted"))
+		#set($deleted = "hide")
+	#else
+		#set($deleted = "")
 	#end
-#end
-####################################
-#macro(questionbox $showpost )
-#set($actionlink = "#getpostlink($showpost false true)")
-#set($actionlink2 = "#getpostlink($showpost true true)")
-#if($showpost.id == $request.getParameter("deleted"))
-	#set($deleted = "hide")
-#else
-	#set($deleted = "")
-#end
-#if($authenticated && $showpost.followers && $showpost.followers.containsKey($authUser.user.id))
-	#set($followedPostClass = "following-post")
-#else
-	#set($followedPostClass = "")
-#end
-#if($showpost.type == "unapprovedquestion")
-	#set($unapprovedClass = "unapproved-post")
-#else
-	#set($unapprovedClass = "")
-#end
-<div id="$!showpost.id" class="card-panel ${followedPostClass} $!{deleted} $!{unapprovedClass}">
-	<div class="row mbn questionbox">
-		#set($votes = $showpost.votes)
-		#set($viewcount = $showpost.viewcount)
-		#set($answercount = $showpost.answercount)
-		#if (!$votes) #set($votes = 0) #end
-		#if (!$viewcount) #set($viewcount = 0) #end
-		#if (!$answercount) #set($answercount = 0) #end
+	#if($authenticated && $showpost.followers && $showpost.followers.containsKey($authUser.user.id))
+		#set($followedPostClass = "following-post")
+	#else
+		#set($followedPostClass = "")
+	#end
+	#if($showpost.type == "unapprovedquestion")
+		#set($unapprovedClass = "unapproved-post")
+	#else
+		#set($unapprovedClass = "")
+	#end
+	#if($compactViewEnabled)
+		#set($panelClass = "card mvm" )
+	#else
+		#set($panelClass = "card-panel" )
+	#end
+	<div id="$!showpost.id" class="${panelClass} ${followedPostClass} $!{deleted} $!{unapprovedClass}">
+		<div class="row mbn questionbox">
+			#set($votes = $showpost.votes)
+			#set($viewcount = $showpost.viewcount)
+			#set($answercount = $showpost.answercount)
+			#if (!$votes) #set($votes = 0) #end
+			#if (!$viewcount) #set($viewcount = 0) #end
+			#if (!$answercount) #set($answercount = 0) #end
 
-		#if ($showpost.answerid && !$showpost.answerid.isEmpty())
-			#set($bgclass = "light-green white-text" )
-		#else
-			#set($bgclass = "orange lighten-5" )
-		#end
+			#if ($showpost.answerid && !$showpost.answerid.isEmpty())
+				#set($bgclass = "light-green white-text" )
+			#else
+				#set($bgclass = "orange lighten-5" )
+			#end
 
-		#if ($votes < 0)
-			#set($bgclass1 = "red lighten-2 white-text" )
-		#elseif($votes >= 100)
-			#set($bgclass1 = "yellow lighten-3" )
-		#else
-			#set($bgclass1 = "" )
-		#end
-		<div class="col m2 l1 center-align hide-on-med-and-down">
-			<div class="qstatsbox">
-				<div class="largeText lightborder tooltipped $!{bgclass1}" data-tooltip="$!lang.get('votes')">$!utils.abbreviateInt($!votes, 0)</div>
-				<div class="mvs lightborder tooltipped $!{bgclass}" data-tooltip="$!lang.get('answers.title')">$utils.abbreviateInt($!answercount, 0)</div>
-				<div class="mvs lightborder tooltipped" data-tooltip="$!lang.get('posts.views')">$utils.abbreviateInt($!viewcount, 0)
-					<small class="hide-on-med-and-down">$!lang.get('posts.views')</small>
-				</div>
-			</div>
-		</div>
-		<div class="col s12 l11">
-			<div class="qstatsbox hide-on-large-only">
-				<span class="lightborder phm tooltipped $!{bgclass1}" data-tooltip="$!lang.get('votes')">$!utils.abbreviateInt($!votes, 0)</span>
-				<span class="mvs phm lightborder tooltipped $!{bgclass}" data-tooltip="$!lang.get('answers.title')">$utils.abbreviateInt($!answercount, 0)</span>
-				<span class="mvs phm lightborder tooltipped" data-tooltip="$!lang.get('posts.views')">$utils.abbreviateInt($!viewcount, 0)
-					<small>$!lang.get('posts.views')</small>
-				</span>
-			</div>
-			<div class="row mbn">
-				<div class="col s10 m11 l9">
-					<div class="mbm mediumText">
+			#if ($votes < 0)
+				#set($bgclass1 = "red lighten-2 white-text" )
+			#elseif($votes >= 100)
+				#set($bgclass1 = "yellow lighten-3" )
+			#else
+				#set($bgclass1 = "" )
+			#end
+
+			#if($compactViewEnabled)
+
+			<div class="col s12">
+				<div class="pvm">
+					#set($firstLink = $scooldUtils.getFirstLinkInPost($!showpost.body))
+					#set($isFirstLinkImage = $firstLink.endsWith(".gif") || $firstLink.endsWith(".svg") ||
+						$firstLink.endsWith(".png") || $firstLink.endsWith(".jpg") ||
+						$firstLink.endsWith(".jpeg") || $firstLink.endsWith(".webp"))
+					#if($isFirstLinkImage)
+						<img src="$!firstLink" width="80" alt="image" class="mrm mbm left">
+					#end
+					<div>
+						<span class="phs kbd lightborder tooltipped $!{bgclass1}" data-tooltip="$!lang.get('votes')">$!utils.abbreviateInt($!votes, 0)</span>
+						<span class="phs kbd lightborder tooltipped $!{bgclass}" data-tooltip="$!lang.get('answers.title')">$utils.abbreviateInt($!answercount, 0)</span>
+						<span class="phs kbd lightborder tooltipped mrm" data-tooltip="$!lang.get('posts.views')">$utils.abbreviateInt($!viewcount, 0)</span>
+						#if($showpost.isSticky())
+						<i class="fa fa-thumb-tack grey-text tooltipped mrs" data-tooltip="Sticky"></i>
+						#end
 						#if($showpost.location && !$showpost.location.isEmpty() && $scooldUtils.isNearMeFeatureEnabled())
-							<i class="fa fa-map-marker grey-text tooltipped mrs" data-tooltip="$showpost.location"></i>
+						<i class="fa fa-map-marker grey-text tooltipped mrs" data-tooltip="$showpost.location"></i>
 						#end
 						#if($showpost.type == "unapprovedquestion")
-							<i class="fa fa-exclamation-circle grey-text tooltipped" data-tooltip="$!lang.get('posts.unapproved')"></i>
+						<i class="fa fa-exclamation-circle grey-text tooltipped" data-tooltip="$!lang.get('posts.unapproved')"></i>
 						#end
-						<a href="$!actionlink/$showpost.id/#stripstr($!showpost.title)" class="mediumText">$!showpost.title</a>
+						<a href="$!actionlink/$showpost.id/#stripstr($!showpost.title)" class="mediumText">
+							#if($showSpaceLabel)
+								#set($spaceLabel = "$!scooldUtils.getSpaceName($!showpost.space)")
+								#if(!$spaceLabel.trim().isEmpty())
+									<small class="grey-text"><strong class="mrs">$spaceLabel</strong><i class="fa fa-angle-right"></i></small>
+								#end
+							#end
+							$!showpost.title
+						</a>
 					</div>
-					<div class="mbs">
-						#set($showBody = $utils.stripHtml($utils.markdownToHtml($utils.stripHtml($!showpost.body))) )
-						<div>$!utils.abbreviate($showBody, 160)</div>
+					<div>
+						#foreach($showtag in $showpost.tags)
+							#if ($showtag && $showtag.trim() != "")
+								<a href="$questionslink/tag/$!utils.urlEncode($showtag)" title="Posts tagged $!showtag" class="mrm">
+									<tt class="grey-text">#</tt>$!showtag
+								</a>
+							#end
+						#end
+
+						#if($firstLink && !$isFirstLinkImage)
+						<i class="fa fa-link grey-text"></i> <a href="$!firstLink">$firstLink</a>
+						#end
+						<span class="right">
+							#personlink($showpost.author)
+							<span class="grey-text"><i class="fa fa-clock-o"></i>	#formatdate($showpost.timestamp "")</span>
+						</span>
 					</div>
-				</div>
-				<div class="col s2 m1 l3">
-					#if(!$request.requestURI.startsWith("/profile"))
-						<div class=" hide-on-med-and-down">
-							#smallpersonbox($showpost.author)
-						</div>
-						<div class="hide-on-large-only">
-							#tinypersonbox($showpost.author)
-						</div>
-					#end
 				</div>
 			</div>
-			<div class="row mbn">
-				<div class="col m10 s12">
-					<div>#tagsbox($showpost.tags $actionlink2)</div>
-				</div>
-				<div class="col m2 s12 mlm grey-text r">
-					<i class="fa fa-clock-o"></i>	#formatdate($showpost.timestamp "")
+
+			#else
+
+			<div class="col m2 l1 center-align hide-on-med-and-down">
+				<div class="qstatsbox">
+					<div class="largeText lightborder tooltipped $!{bgclass1}" data-tooltip="$!lang.get('votes')">$!utils.abbreviateInt($!votes, 0)</div>
+					<div class="mvs lightborder tooltipped $!{bgclass}" data-tooltip="$!lang.get('answers.title')">$utils.abbreviateInt($!answercount, 0)</div>
+					<div class="mvs lightborder tooltipped" data-tooltip="$!lang.get('posts.views')">$utils.abbreviateInt($!viewcount, 0)
+						<small class="hide-on-med-and-down">$!lang.get('posts.views')</small>
+					</div>
 				</div>
 			</div>
+			<div class="col s12 l11">
+				<div class="qstatsbox hide-on-large-only">
+					<span class="lightborder phm tooltipped $!{bgclass1}" data-tooltip="$!lang.get('votes')">$!utils.abbreviateInt($!votes, 0)</span>
+					<span class="mvs phm lightborder tooltipped $!{bgclass}" data-tooltip="$!lang.get('answers.title')">$utils.abbreviateInt($!answercount, 0)</span>
+					<span class="mvs phm lightborder tooltipped" data-tooltip="$!lang.get('posts.views')">$utils.abbreviateInt($!viewcount, 0)
+						<small>$!lang.get('posts.views')</small>
+					</span>
+				</div>
+				<div class="row mbn">
+					<div class="col s10 m11 l9">
+						#if($showSpaceLabel)
+						<div><small class="grey-text"><strong>$scooldUtils.getSpaceName($showpost.space)</strong></small></div>
+						#end
+						<div class="mediumText">
+							#if($showpost.location && !$showpost.location.isEmpty() && $scooldUtils.isNearMeFeatureEnabled())
+								<i class="fa fa-map-marker grey-text tooltipped mrs" data-tooltip="$showpost.location"></i>
+							#end
+							#if($showpost.type == "unapprovedquestion")
+								<i class="fa fa-exclamation-circle grey-text tooltipped" data-tooltip="$!lang.get('posts.unapproved')"></i>
+							#end
+							<a href="$!actionlink/$showpost.id/#stripstr($!showpost.title)" class="mediumText">$!showpost.title</a>
+						</div>
+						<div class="mbs">
+							#set($showBody = $utils.stripHtml($utils.markdownToHtml($utils.stripHtml($!showpost.body))) )
+							<div>$!utils.abbreviate($showBody, 160)</div>
+						</div>
+					</div>
+					<div class="col s2 m1 l3">
+						#if(!$request.requestURI.startsWith("/profile"))
+							<div class=" hide-on-med-and-down">
+								#smallpersonbox($showpost.author)
+							</div>
+							<div class="hide-on-large-only">
+								#tinypersonbox($showpost.author)
+							</div>
+						#end
+					</div>
+				</div>
+				<div class="row mbn">
+					<div class="col m10 s12">
+						<div>#tagsbox($showpost.tags $actionlink2)</div>
+					</div>
+					<div class="col m2 s12 mlm grey-text r">
+						<i class="fa fa-clock-o"></i>	#formatdate($showpost.timestamp "")
+					</div>
+				</div>
+			</div>
+
+			#end
 		</div>
 	</div>
-</div>
+	#end
 #end
 ####################################
 #macro(compactanswerspage $answers)
@@ -478,7 +605,8 @@
 ####################################
 #macro(postbox $showpost $parentpost)
 #set($actionlink = "#getpostlink($showpost false true)")
-<div id="$!showpost.id" class="postbox $!{showpost.type}box">
+#if($request.getServletPath().endsWith("/edit-post-$!showpost.id"))#set($resumeEditPost = "resume-editing")#else#set($resumeEditPost = "" )#end
+<div id="$!showpost.id" class="postbox $!{showpost.type}box $!{resumeEditPost}">
 	#if($showpost.isReply())<hr>#end
 	<div id="post-$!showpost.id" class="viewbox mbm">
 		<div class="postbody pvs">
@@ -491,7 +619,7 @@
 				<div class="left mtm mrl approve-answer-btn">
 					#set($approvedAnswer = $showpost.id.equals($parentpost.answerid))
 					#if ($approvedAnswer)	#set($onclass = "green-text text-lighten-1") #else #set($onclass = "") #end
-					#if ($authenticated && $showpost.isReply() && $parentpost.creatorid.equals($authUser.id))
+					#if ($authenticated && $showpost.isReply() && ($parentpost.creatorid.equals($authUser.id) || $isAdmin))
 						<a href="$questionlink/$!parentpost.id/approve/$!showpost.id" class="approve-answer $!{onclass}"
 							 title="Approve answer"><i class="fa fa-check-circle fa-3x"></i></a>
 					#elseif ($approvedAnswer)
@@ -504,7 +632,7 @@
 				<div class="ptl center-align">
 					<div>$!lang.get("posts.posted") #formatdate($showpost.timestamp "")</div>
 					#if($showpost.type == "unapprovedreply" || $showpost.type == "unapprovedquestion")
-						<small class="orange-text"><i class="fa fa-exclamation-circle"></i> $!lang.get('posts.unapproved')</small>
+					<div><small class="orange-text"><i class="fa fa-exclamation-circle"></i> $!lang.get('posts.unapproved')</small></div>
 					#end
 					#if ($showpost.lasteditby)
 					<a href="$revisionslink/$!showpost.id" title="Revision history">
@@ -567,22 +695,23 @@
 
 	#if ($scooldUtils.canEdit($showpost, $authUser))
 	<div class="editbox pvm hide">
-		<form method="post" action="$questionlink/$!showpost.id/edit">
+		<form method="post" action="$questionlink/$!showpost.id/edit" class="edit-post-form">
 			#sectoken(false "EDIT_POST_$!showpost.id")
 
 			#if(!$showpost.isReply())
 				<div class="input-field">
 					<i class="fa fa-paragraph pvm prefix grey-text"></i>
 					<label for="title_text">$!lang.get('posts.title')</label>
-					<input type="text" id="title_text" name="title" class="validate" maxlength="255" minlength="6"
-								 value="$!showpost.title" required>
+					<input type="text" name="title" class="validate" maxlength="255" minlength="2"
+								 value="$!showpost.title" id="edit-$!{showpost.id}-title" required>
 					#getmessagebox("red white-text" $error.get("title"))
 				</div>
 			#end
 
 			<i class="fa fa-pencil fa-2x left grey-text"></i>
 			<div class="pll mll">
-				<textarea class="edit-post" name="body" length="$MAX_TEXT_LENGTH" minlength="10">$!showpost.body</textarea>
+				<textarea class="edit-post" name="body" length="$MAX_TEXT_LENGTH" minlength="10"
+									id="edit-$!{showpost.id}-body">$!showpost.body</textarea>
 				#getmessagebox("red white-text" $error.get("body"))
 			</div>
 
@@ -590,32 +719,24 @@
 				<div class="input-field">
 					<i class="fa fa-tag fa-2x grey-text prefix ptm"></i>
 					<div class="chips chips-autocomplete" title="$!lang.get('tags.title')"></div>
-					<input type="hidden" name="tags" value="$!showpost.tagsString">
+					<input type="hidden" name="tags" value="$!showpost.tagsString" id="edit-$!{showpost.id}-tags">
 					#getmessagebox("red white-text" $error.get("tags"))
 				</div>
 
-				#if($authUser.hasSpaces() || $isMod)
+				#spaceselect($showpost)
+
+				#if($scooldUtils.isNearMeFeatureEnabled())
 					<div class="input-field">
-						<i class="fa fa-th-large fa-2x prefix grey-text"></i>
-						<div class="mll pll">
-							<select name="space" class="browser-default pll">
-								#set($selectedPostSpace = $!scooldUtils.getSpaceName($!showpost.space))
-								<option value="$!showpost.space" disabled selected>#if($scooldUtils.isDefaultSpace($selectedPostSpace))Default space#else $!selectedPostSpace #end</option>
-								#if($scooldUtils.canAccessSpace($authUser, "default"))
-									<option value="">Default space</option>
-								#end
-								#foreach($space in $authUser.spaces)
-									<option value="$!space">$!scooldUtils.getSpaceName($space)</option>
-								#end
-							</select>
-						</div>
+						<i class="fa fa-map-marker ptm prefix grey-text"></i>
+						<input id="location_text" name="location" class="locationbox validate" type="text" value="$!showpost.location"
+									 placeholder="$!{lang.get('profile.about.location')}">
+						<input type="hidden" name="latlng" value="">
+						<input type="hidden" name="address" value="">
 					</div>
-					#getmessagebox("red white-text" $error.get("space"))
 				#end
 			#end
 
-			<br>
-			<div class="mts mbl">
+			<div class="mtl ptm mbl">
 				<button class="btn waves-effect waves-light" type="submit">
 					<i class="fa fa-save left"></i> $!lang.get('save')
 				</button> &nbsp;
@@ -626,46 +747,34 @@
 	#end
 
 	<div class="comments post-comments">
-		#paginate("\#commentspage(\$showpost.comments)" $showpost.itemcount "$commentlink?getcomments=true&parentid=$showpost.id" "page")
+		#paginate("postcomments" $showpost.itemcount "$commentlink?getcomments=true&parentid=$showpost.id" "page")
 	</div>
 </div>
 #end
 ###################################
-#macro(translationspage $translations)
-	#foreach($trans in $translations)
-		#translationbox($trans)
+#macro(spaceselect $post )
+	#if($authUser.hasSpaces() || $isMod)
+		<div class="input-field">
+			<i class="fa fa-th-large fa-2x prefix grey-text"></i>
+			<div class="mll pll">
+				<select name="space" class="browser-default pll">
+					#if($post)
+						#set($selectedPostSpace = $!scooldUtils.getSpaceName($!post.space))
+					#else
+						#set($selectedPostSpace = $!scooldUtils.getSpaceName($!scooldUtils.getValidSpaceIdExcludingAll($authUser, "", $request)))
+					#end
+					<option value="$!post.space" disabled selected>#if($scooldUtils.isDefaultSpace($selectedPostSpace))$!lang.get('defaultspace')#else $!selectedPostSpace #end</option>
+					#if($scooldUtils.canAccessSpace($authUser, "default"))
+						<option value="">$!lang.get('defaultspace')</option>
+					#end
+					#foreach($space in $authUser.spaces)
+						<option value="$!space">$!scooldUtils.getSpaceName($space)</option>
+					#end
+				</select>
+			</div>
+		</div>
+		#getmessagebox("red white-text" $error.get("space"))
 	#end
-#end
-###################################
-#macro(translationbox $showtrans)
-<div class="card-panel translationbox">
-	<div class="row">
-		<div class="col m1">
-			#votebox($showtrans "mediumText")
-		</div>
-		<div class="col m7 trans-value">
-			<span class="mediumText">$!showtrans.value</span> <br>
-			<i class="fa fa-user-circle grey-text"></i> $!showtrans.authorName
-			<span class="grey-text trans-timestamp"><i class="fa fa-clock-o"></i> #formatdate($showtrans.timestamp '')</span>
-		</div>
-		<div class="col m4 mediumText r">
-			#if ($authenticated && ($showtrans.creatorid == $authUser.id || $isAdmin))
-				#if ($isAdmin)
-					#if ($showtrans.approved)#set($onclass = "green-text")#else#set($onclass = "")#end
-					<a href="$translatelink/approve/$!{showtrans.id}" class="approve-translation $!{onclass}" title="Toogle approved status">
-						<i class="fa fa-check-circle"></i>#if ($showtrans.approved) Approved #else Approve #end
-					</a>
-					&nbsp;
-				#end
-				<a href="$translatelink/delete/$!{showtrans.id}" title="Delete" class="delete-translation red-text mll">
-					<i class="fa fa-times"></i> $!lang.get('delete')
-				</a>
-			#else
-				#getreportlink($showtrans "$translatelink/$!showtrans.id" "notext")
-			#end
-		</div>
-	</div>
-</div>
 #end
 ###################################
 #macro(badgebox $showbadge $num)
@@ -753,9 +862,9 @@ $utils.formatDate($date, $format, $currentLocale)
 			#end
 			#end
 		</select>
-		<div class="input-field">
+		<div class="input-field mtl">
 			<label>$!lang.get("reports.description")</label>
-			<textarea name="description" class="materialize-textarea"></textarea>
+			<textarea name="description" class="materialize-textarea" rows="4"></textarea>
 		</div>
 		<input type="hidden" name="parentid" value="$!parentid">
 		#if ($link && !$link.isEmpty())
@@ -786,7 +895,7 @@ $utils.formatDate($date, $format, $currentLocale)
 <div class="progress ajaxwait $!{hidden}"><div class="indeterminate"></div></div>
 #end
 #####################################
-#macro(profilepic $user)#if($user && $user.picture.matches("^(http:|https:|data:).*"))$!{user.picture}#else https://www.gravatar.com/avatar/?size=350&d=mm #end#end
+#macro(profilepic $user)#if($user && $user.picture && $user.picture.matches("^(http:|https:).*"))$peoplelink/avatar?url=$utils.urlEncode($!user.picture)#elseif($user && $user.picture && $user.picture.matches("^(data:).*"))$user.picture #else $!imageslink/anon.svg #end#end
 #####################################
 #macro(infostrip )
 	#if ($request.getParameter("success"))
@@ -803,14 +912,16 @@ $utils.formatDate($date, $format, $currentLocale)
 		#else
 			#set($infoStripMsg = $!lang.get("newbadge"))
 		#end
+		#set($hideInfoStrip = "click2hide")
 	#elseif ($request.getParameter("code"))
 		#set($infoStripMsg = $!lang.get("msgcode.${request.getParameter('code')}"))
+		#set($hideInfoStrip = "click2hide")
+	#else
+		#set($hideInfoStrip = "")
 	#end
 
 	#if (!$infoStripMsg || $infoStripMsg.trim().isEmpty())
 		#set($hideInfoStrip = "hide")
-	#else
-		#set($hideInfoStrip = "")
 	#end
 
 	<noscript>
@@ -818,16 +929,19 @@ $utils.formatDate($date, $format, $currentLocale)
 			<i class="fa fa-warning"></i> $!{lang.get("nojavascript")}
 		</div>
 	</noscript>
-	<div class="card-panel infostrip center click2hide ${hideInfoStrip} ${infoStripClass}">
+	<div class="card-panel infostrip ${hideInfoStrip} ${infoStripClass}">
+		#if(!$hideInfoStrip.contains("click2hide"))
+			<a href="#" class="right close-infostrip"><i class="fa fa-times"></i></a>
+		#end
 		#set($_infoStripMsg = $infoStripMsg )
-		<span class="mediumText">
+		<div class="infostrip-content">
 			$!_infoStripMsg
 			#if (!$badgelist.isEmpty())
 				#foreach($badge in $badgelist)
 					#badgebox($badge 0)
 				#end
 			#end
-		</span>
+		</div>
 	</div>
 #end
 #####################################
@@ -838,20 +952,20 @@ $utils.formatDate($date, $format, $currentLocale)
 #if ($sbparam && !$sbparam.isEmpty()) #set($paramMap[$sbparam] = $sbclazz) #else #set($paramMap[$defkey] = $sbclazz) #end
 #end
 #####################################
+#macro(sortorderparam $prefix $sortparam)
+#if ("false" != $request.getParameter("desc") && $sortparam == $request.getParameter("sortby"))$!{prefix}desc=false#end
+#end
+#####################################
+#macro(sortorderparamasc $prefix $sortparam)
+#if ("false" == $request.getParameter("desc") && $sortparam == $request.getParameter("sortby"))$!{prefix}desc=true#else$!{prefix}desc=false#end
+#end
+#####################################
+#macro(sortordericon $sortparam)
+#if ("false" == $request.getParameter("desc") && $sortparam == $request.getParameter("sortby"))<i class="fa fa-sort-amount-asc phs" title="Ascending order"></i>#end
+#end
+#####################################
 #macro(sectoken $bare $formId)
-	#set($seccsrfkey = "${TOKEN_PREFIX}CSRF")
-	#if ($bare && $bare == true)
-		$!request.session.getAttribute($!seccsrfkey)
-	#else
-		<input type="hidden" name="_csrf" value="$!request.session.getAttribute($!seccsrfkey)">
-		#if($formId && !$formId.isEmpty())
-			#if(!$request.session.getAttribute("${TOKEN_PREFIX}$!formId"))
-				$request.session.setAttribute("${TOKEN_PREFIX}$!formId", $utils.timestamp())
-			#end
-			<input type="hidden" name="_time" value='$!request.session.getAttribute("${TOKEN_PREFIX}$!formId")'>
-			<input type="hidden" name="_timekey" value="${TOKEN_PREFIX}$!formId">
-		#end
-	#end
+## RESERVED FOR FUTURE USE
 #end
 ################# END MACROS ###################################################
 

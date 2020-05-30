@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ public class ScooldRequestInterceptor extends HandlerInterceptorAdapter {
 			request.setAttribute(AUTH_USER_ATTRIBUTE, utils.checkAuth(request, response));
 		} catch (Exception e) {
 			if (e.getCause() instanceof ConnectException) {
-				response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				//response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value()); // breaks site
 				logger.error("No connection to Para backend.", e.getMessage());
 			} else if (e instanceof WebApplicationException && isApiRequest) {
 				response.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -113,6 +113,7 @@ public class ScooldRequestInterceptor extends HandlerInterceptorAdapter {
 		modelAndView.addObject("reportTypes", ReportType.values());
 		modelAndView.addObject("returnto", StringUtils.removeStart(request.getRequestURI(), CONTEXT_PATH));
 		// Configurable constants
+		modelAndView.addObject("MAX_PAGES", Config.MAX_PAGES);
 		modelAndView.addObject("MAX_TEXT_LENGTH", MAX_TEXT_LENGTH);
 		modelAndView.addObject("MAX_TAGS_PER_POST", MAX_TAGS_PER_POST);
 		modelAndView.addObject("MAX_REPLIES_PER_POST", MAX_REPLIES_PER_POST);
@@ -138,7 +139,6 @@ public class ScooldRequestInterceptor extends HandlerInterceptorAdapter {
 		modelAndView.addObject("GEEK_IFHAS", GEEK_IFHAS);
 		// Cookies
 		modelAndView.addObject("localeCookieName", LOCALE_COOKIE);
-		modelAndView.addObject("csrfCookieName", CSRF_COOKIE);
 		// Paths
 		modelAndView.addObject("imageslink", IMAGESLINK); // do not add context path prefix!
 		modelAndView.addObject("scriptslink", SCRIPTSLINK); // do not add context path prefix!
@@ -153,7 +153,6 @@ public class ScooldRequestInterceptor extends HandlerInterceptorAdapter {
 		modelAndView.addObject("termslink", CONTEXT_PATH + TERMSLINK);
 		modelAndView.addObject("tagslink", CONTEXT_PATH + TAGSLINK);
 		modelAndView.addObject("settingslink", CONTEXT_PATH + SETTINGSLINK);
-		modelAndView.addObject("translatelink", CONTEXT_PATH + TRANSLATELINK);
 		modelAndView.addObject("reportslink", CONTEXT_PATH + REPORTSLINK);
 		modelAndView.addObject("adminlink", CONTEXT_PATH + ADMINLINK);
 		modelAndView.addObject("votedownlink", CONTEXT_PATH + VOTEDOWNLINK);
@@ -165,15 +164,19 @@ public class ScooldRequestInterceptor extends HandlerInterceptorAdapter {
 		modelAndView.addObject("revisionslink", CONTEXT_PATH + REVISIONSLINK);
 		modelAndView.addObject("feedbacklink", CONTEXT_PATH + FEEDBACKLINK);
 		modelAndView.addObject("languageslink", CONTEXT_PATH + LANGUAGESLINK);
+		modelAndView.addObject("apidocslink", CONTEXT_PATH + APIDOCSLINK);
 		// Visual customization
 		modelAndView.addObject("navbarFixedClass", Config.getConfigBoolean("fixed_nav", false) ? "navbar-fixed" : "none");
 		modelAndView.addObject("showBranding", Config.getConfigBoolean("show_branding", true));
 		modelAndView.addObject("logoUrl", Config.getConfigParam("logo_url", IMAGESLINK + "/logo.svg"));
 		modelAndView.addObject("logoWidth", Config.getConfigInt("logo_width", 90));
 		modelAndView.addObject("stylesheetUrl", Config.getConfigParam("stylesheet_url", STYLESLINK + "/style.css"));
+		modelAndView.addObject("faviconUrl", Config.getConfigParam("favicon_url", IMAGESLINK + "/favicon.ico"));
+		modelAndView.addObject("inlineUserCSS", utils.getInlineCSS());
+		modelAndView.addObject("darkModeEnabled", "1".equals(HttpUtils.getCookieValue(request, "dark-mode")));
+		modelAndView.addObject("compactViewEnabled", "true".equals(HttpUtils.getCookieValue(request, "questions-view-compact")));
 		// Auth & Badges
 		Profile authUser = (Profile) request.getAttribute(AUTH_USER_ATTRIBUTE);
-		modelAndView.addObject("infoStripMsg", authUser == null ? Config.getConfigParam("welcome_message", "") : "");
 		modelAndView.addObject("authenticated", authUser != null);
 		modelAndView.addObject("canComment", utils.canComment(authUser, request));
 		modelAndView.addObject("isMod", utils.isMod(authUser));
@@ -192,13 +195,18 @@ public class ScooldRequestInterceptor extends HandlerInterceptorAdapter {
 		modelAndView.addObject("lang", utils.getLang(currentLocale));
 		modelAndView.addObject("langDirection", utils.isLanguageRTL(currentLocale.getLanguage()) ? "RTL" : "LTR");
 		// Pagination
+		modelAndView.addObject("numericPaginationEnabled", Config.getConfigBoolean("numeric_pagination_enabled", false));
 		// check for AJAX pagination requests
-		if (utils.isAjaxRequest(request) && (utils.param(request, "page") ||
-				utils.param(request, "page1") || utils.param(request, "page2"))) {
+		if (utils.isAjaxRequest(request) && (utils.param(request, "page") || utils.param(request, "page1") ||
+				utils.param(request, "page2") || utils.param(request, "page3"))) {
 			modelAndView.setViewName("pagination"); // switch to page fragment view
 		}
 		// External scripts
 		modelAndView.addObject("externalScripts", utils.getExternalScripts());
+		// External styles
+		modelAndView.addObject("externalStyles", utils.getExternalStyles());
+		// GDPR
+		modelAndView.addObject("cookieConsentGiven", utils.cookieConsentGiven(request));
 		// CSP nonce
 		String cspNonce = utils.getCSPNonce();
 		modelAndView.addObject("cspNonce", cspNonce);

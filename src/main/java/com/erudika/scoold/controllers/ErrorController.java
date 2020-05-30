@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,19 @@
  */
 package com.erudika.scoold.controllers;
 
+import com.erudika.para.core.utils.ParaObjectUtils;
 import com.erudika.scoold.utils.ScooldUtils;
+import java.io.IOException;
+import java.util.Collections;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  *
@@ -40,13 +46,19 @@ public class ErrorController {
 		this.utils = utils;
 	}
 
-	@RequestMapping("/error/{code}")
-	public String get(@PathVariable String code, HttpServletRequest req, Model model) {
+	@GetMapping("/error/{code}")
+	public String get(@PathVariable String code, HttpServletRequest req, HttpServletResponse res, Model model) throws IOException {
 		model.addAttribute("path", "error.vm");
 		model.addAttribute("title", utils.getLang(req).get("error.title"));
 		model.addAttribute("status", req.getAttribute("javax.servlet.error.status_code"));
 		model.addAttribute("reason", req.getAttribute("javax.servlet.error.message"));
 		model.addAttribute("code", code);
+
+		if (StringUtils.startsWith((CharSequence) req.getAttribute("javax.servlet.forward.request_uri"), "/api/")) {
+			res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+			ParaObjectUtils.getJsonWriterNoIdent().writeValue(res.getOutputStream(),
+					Collections.singletonMap("error", code + " - " + req.getAttribute("javax.servlet.error.message")));
+		}
 		return "base";
 	}
 }

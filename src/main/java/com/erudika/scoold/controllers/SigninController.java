@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,12 @@ import com.erudika.para.annotations.Email;
 import com.erudika.para.client.ParaClient;
 import com.erudika.para.core.Sysprop;
 import com.erudika.para.core.User;
+import com.erudika.para.core.utils.ParaObjectUtils;
 import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Utils;
 import static com.erudika.scoold.ScooldServer.CONTEXT_PATH;
-import static com.erudika.scoold.ScooldServer.CSRF_COOKIE;
 import static com.erudika.scoold.ScooldServer.HOMEPAGE;
+import static com.erudika.scoold.ScooldServer.MAX_TAGS_PER_POST;
 import com.erudika.scoold.utils.HttpUtils;
 import com.erudika.scoold.utils.ScooldUtils;
 import java.util.Collections;
@@ -40,12 +41,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import static com.erudika.scoold.ScooldServer.SIGNINLINK;
+import com.erudika.scoold.core.Profile;
+import static com.erudika.scoold.utils.HttpUtils.getBackToUrl;
+import static com.erudika.scoold.utils.HttpUtils.setAuthCookie;
 import java.util.Locale;
-import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.core.HttpHeaders;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.commons.lang3.time.DateFormatUtils;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 
@@ -82,11 +84,18 @@ public class SigninController {
 		model.addAttribute("twLoginEnabled", !Config.TWITTER_APP_ID.isEmpty());
 		model.addAttribute("msLoginEnabled", !Config.MICROSOFT_APP_ID.isEmpty());
 		model.addAttribute("slLoginEnabled", !Config.SLACK_APP_ID.isEmpty());
+		model.addAttribute("azLoginEnabled", !Config.AMAZON_APP_ID.isEmpty());
 		model.addAttribute("oa2LoginEnabled", !Config.getConfigParam("oa2_app_id", "").isEmpty());
+		model.addAttribute("oa2secondLoginEnabled", !Config.getConfigParam("oa2second_app_id", "").isEmpty());
+		model.addAttribute("oa2thirdLoginEnabled", !Config.getConfigParam("oa2third_app_id", "").isEmpty());
 		model.addAttribute("ldapLoginEnabled", !Config.getConfigParam("security.ldap.server_url", "").isEmpty());
 		model.addAttribute("passwordLoginEnabled", Config.getConfigBoolean("password_auth_enabled", true));
 		model.addAttribute("oa2LoginProvider", Config.getConfigParam("security.oauth.provider",
 				"Continue with OpenID Connect"));
+		model.addAttribute("oa2secondLoginProvider", Config.getConfigParam("security.oauthsecond.provider",
+				"Continue with OpenID Connect 2"));
+		model.addAttribute("oa2thirdLoginProvider", Config.getConfigParam("security.oauththird.provider",
+				"Continue with OpenID Connect 3"));
 		return "base";
 	}
 
@@ -218,14 +227,12 @@ public class SigninController {
 	}
 
 	@ResponseBody
-	@GetMapping("/scripts/globals.js")
+	@GetMapping(path = "/scripts/globals.js", produces = "text/javascript")
 	public ResponseEntity<String> globals(HttpServletRequest req, HttpServletResponse res) {
-		res.setContentType("text/javascript");
 		StringBuilder sb = new StringBuilder();
 		sb.append("APPID = \"").append(Config.getConfigParam("access_key", "app:scoold").substring(4)).append("\"; ");
 		sb.append("ENDPOINT = \"").append(pc.getEndpoint()).append("\"; ");
 		sb.append("CONTEXT_PATH = \"").append(CONTEXT_PATH).append("\"; ");
-		sb.append("CSRF_COOKIE = \"").append(CSRF_COOKIE).append("\"; ");
 		sb.append("FB_APP_ID = \"").append(Config.FB_APP_ID).append("\"; ");
 		sb.append("GOOGLE_CLIENT_ID = \"").append(Config.getConfigParam("google_client_id", "")).append("\"; ");
 		sb.append("GOOGLE_ANALYTICS_ID = \"").append(Config.getConfigParam("google_analytics_id", "")).append("\"; ");
@@ -234,12 +241,34 @@ public class SigninController {
 		sb.append("TWITTER_APP_ID = \"").append(Config.TWITTER_APP_ID).append("\"; ");
 		sb.append("MICROSOFT_APP_ID = \"").append(Config.MICROSOFT_APP_ID).append("\"; ");
 		sb.append("SLACK_APP_ID = \"").append(Config.SLACK_APP_ID).append("\"; ");
+		sb.append("AMAZON_APP_ID = \"").append(Config.AMAZON_APP_ID).append("\"; ");
+
 		sb.append("OAUTH2_ENDPOINT = \"").append(Config.getConfigParam("security.oauth.authz_url", "")).append("\"; ");
 		sb.append("OAUTH2_APP_ID = \"").append(Config.getConfigParam("oa2_app_id", "")).append("\"; ");
 		sb.append("OAUTH2_SCOPE = \"").append(Config.getConfigParam("security.oauth.scope", "")).append("\"; ");
 
+		sb.append("OAUTH2_SECOND_ENDPOINT = \"").append(Config.getConfigParam("security.oauthsecond.authz_url", "")).append("\"; ");
+		sb.append("OAUTH2_SECOND_APP_ID = \"").append(Config.getConfigParam("oa2second_app_id", "")).append("\"; ");
+		sb.append("OAUTH2_SECOND_SCOPE = \"").append(Config.getConfigParam("security.oauthsecond.scope", "")).append("\"; ");
+
+		sb.append("OAUTH2_THIRD_ENDPOINT = \"").append(Config.getConfigParam("security.oauththird.authz_url", "")).append("\"; ");
+		sb.append("OAUTH2_THIRD_APP_ID = \"").append(Config.getConfigParam("oa2third_app_id", "")).append("\"; ");
+		sb.append("OAUTH2_THIRD_SCOPE = \"").append(Config.getConfigParam("security.oauththird.scope", "")).append("\"; ");
+
 		Locale currentLocale = utils.getCurrentLocale(utils.getLanguageCode(req));
 		sb.append("RTL_ENABLED = ").append(utils.isLanguageRTL(currentLocale.getLanguage())).append("; ");
+
+		Profile authUser = utils.getAuthUser(req);
+		String welcomeMsg = Config.getConfigParam("welcome_message", "");
+		String welcomeMsgOnlogin = Config.getConfigParam("welcome_message_onlogin", "");
+		if (authUser != null && StringUtils.contains(welcomeMsgOnlogin, "{{")) {
+			welcomeMsgOnlogin = Utils.compileMustache(Collections.singletonMap("user",
+					ParaObjectUtils.getAnnotatedFields(authUser, false)), welcomeMsgOnlogin);
+		}
+		sb.append("WELCOME_MESSAGE = \"").append(authUser == null ? welcomeMsg : "").append("\"; ");
+		sb.append("WELCOME_MESSAGE_ONLOGIN = \"").append(authUser != null ? welcomeMsgOnlogin : "").append("\"; ");
+		sb.append("MAX_TAGS_PER_POST = ").append(MAX_TAGS_PER_POST).append("; ");
+
 		String result = sb.toString();
 		return ResponseEntity.ok().cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS))
 				.eTag(Utils.md5(result)).body(result);
@@ -256,15 +285,14 @@ public class SigninController {
 				// the user password in this case is a Bearer token (JWT)
 				setAuthCookie(u.getPassword(), req, res);
 			} else {
+				if (u != null && !utils.isEmailDomainApproved(u.getEmail())) {
+					LoggerFactory.getLogger(SigninController.class).
+							warn("Signin denied for {} because that domain is not in the whitelist.", u.getEmail());
+				}
 				return "redirect:" + SIGNINLINK + "?code=3&error=true";
 			}
 		}
 		return "redirect:" + getBackToUrl(req);
-	}
-
-	private String getBackToUrl(HttpServletRequest req) {
-		String backtoFromCookie = Utils.urlDecode(HttpUtils.getStateParam("returnto", req));
-		return (StringUtils.isBlank(backtoFromCookie) ? HOMEPAGE : backtoFromCookie);
 	}
 
 	private boolean activateWithEmailToken(User u, String token) {
@@ -355,20 +383,5 @@ public class SigninController {
 			}
 		}
 		return false;
-	}
-
-	private void setAuthCookie(String jwt, HttpServletRequest req, HttpServletResponse res) {
-		int maxAge = Config.SESSION_TIMEOUT_SEC;
-		String expires = DateFormatUtils.format(System.currentTimeMillis() + (maxAge * 1000),
-				"EEE, dd-MMM-yyyy HH:mm:ss z", TimeZone.getTimeZone("GMT"));
-
-		StringBuilder sb = new StringBuilder();
-		sb.append(Config.AUTH_COOKIE).append("=").append(jwt).append(";");
-		sb.append("Path=/;");
-		sb.append("Expires=").append(expires).append(";");
-		sb.append("Max-Age=").append(maxAge).append(";");
-		sb.append("HttpOnly;");
-		sb.append("SameSite=Lax");
-		res.addHeader(HttpHeaders.SET_COOKIE, sb.toString());
 	}
 }

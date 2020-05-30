@@ -18,16 +18,16 @@
 						<form method="post">
 							#sectoken(false "REGISTER_USER")
 							<div class="input-field mvm">
-								<label>$!lang.get('name')</label>
+								<label for="name">$!lang.get('name')</label>
 								<input id="name" type="text" name="name" value="$!name" required>
 							</div>
 							<div class="input-field mvm">
-								<label>$!lang.get('signup.form.email')</label>
+								<label for="email">$!lang.get('signup.form.email')</label>
 								<input id="email" type="email" name="email" value="$!bademail" pattern="$!{emailPattern}" required>
 								#getmessagebox("red white-text" $error.get("email"))
 							</div>
 							<div class="input-field mvm">
-								<label>$!lang.get('password')</label>
+								<label for="passw">$!lang.get('password')</label>
 								<input id="passw" type="password" name="passw" value="" minlength="6" required>
 							</div>
 
@@ -65,12 +65,15 @@
 						<div class="mvm">
 							#getmessagebox("red white-text" $error.get("email"))
 							<input type="hidden" name="token" value="$!token">
-							<input id="email" type="email" name="email" value="$!email" placeholder="Email" required>
+							<div class="input-field">
+								<label for="email">Email</label>
+								<input id="email" type="email" name="email" value="$!email" required>
+							</div>
 						</div>
 						#if($token)
-							<div class="mvm">
-								<input id="newpassword" type="password" name="newpassword" value=""
-											 minlength="6" placeholder="$!lang.get('newpassword')" required>
+							<div class="input-field mvm">
+								<label for="newpassword">$!lang.get('newpassword')</label>
+								<input id="newpassword" type="password" name="newpassword" value="" minlength="6" required>
 							</div>
 						#end
 						#if($token)
@@ -100,7 +103,8 @@
 					#set($rightColSize = "col l8 offset-l2 m10 offset-m1 s12" )
 				#end
 
-				#if(!$fbLoginEnabled && !$gpLoginEnabled && !$ghLoginEnabled && !$inLoginEnabled && !$twLoginEnabled && !$msLoginEnabled && !$slLoginEnabled && !$oa2LoginEnabled)
+				#if(!$fbLoginEnabled && !$gpLoginEnabled && !$ghLoginEnabled && !$inLoginEnabled && !$twLoginEnabled &&
+						!$msLoginEnabled && !$slLoginEnabled && !$azLoginEnabled && !$oa2LoginEnabled && !$oa2secondLoginEnabled && !$oa2thirdLoginEnabled)
 					#set($leftColSize = "col l6 offset-l3 s12" )
 					#set($rightColSize = "hide" )
 				#end
@@ -115,11 +119,11 @@
 							<form method="post" id="password-login-form">
 								#sectoken(false "SIGNIN_PASS")
 								<div class="input-field mvm">
-									<label>$!lang.get('signup.form.email')</label>
+									<label for="email">$!lang.get('signup.form.email')</label>
 									<input id="email" type="email" value="" required>
 								</div>
 								<div class="input-field mvm">
-									<label>$!lang.get('password')</label>
+									<label for="passw">$!lang.get('password')</label>
 									<input id="passw" type="password" value="" minlength="6" required>
 								</div>
 								<input type="hidden" name="provider" value="password">
@@ -140,11 +144,11 @@
 							<form method="post" id="ldap-login-form">
 								#sectoken(false "SIGNIN_LDAP")
 								<div class="input-field mvm">
-									<label>Username</label>
+									<label for="username">Username</label>
 									<input id="username" type="text" value="" required>
 								</div>
 								<div class="input-field mvm">
-									<label>$!lang.get('password')</label>
+									<label for="password">$!lang.get('password')</label>
 									<input id="password" type="password" value="" required>
 								</div>
 								<input type="hidden" name="provider" value="ldap">
@@ -210,11 +214,20 @@
 								#end
 
 								#if($slLoginEnabled)
-								<div class="mvl pvs">
-										<a id="sl-login-btn" href="#" class="btn-large white grey-text text-darken-1 truncate pls prl">
+									<div class="mvl pvs">
+										<a id="sl-login-btn" href="#" class="btn-large grey-text truncate pls prl">
 											<img src="https://cdn.brandfolder.io/5H442O3W/as/pl546j-7le8zk-199wkt/Slack_Mark.svg"
 													 width="54" height="54" alt="Slack logo" class="left"/>
 											$!lang.get("signin.slack")
+										</a>
+									</div>
+								#end
+
+								#if($azLoginEnabled)
+									<div class="mvl pvs">
+										<a id="az-login-btn" href="#" class="btn-large grey-text truncate pls prl">
+											<img src="$imageslink/amazon.svg" width="50" height="50" alt="Amazon logo" class="left pts phm"/>
+											$!lang.get("signin.amazon")
 										</a>
 									</div>
 								#end
@@ -223,6 +236,22 @@
 									<div class="mvl pvs">
 										<a id="oa2-login-btn" href="#" class="btn-large grey darken-2 truncate">
 											<i class="fa fa-openid left"></i> $!oa2LoginProvider
+										</a>
+									</div>
+								#end
+
+								#if($oa2secondLoginEnabled)
+									<div class="mvl pvs">
+										<a id="oa2second-login-btn" href="#" class="btn-large grey darken-2 truncate">
+											<i class="fa fa-openid left"></i> $!oa2secondLoginProvider
+										</a>
+									</div>
+								#end
+
+								#if($oa2thirdLoginEnabled)
+									<div class="mvl pvs">
+										<a id="oa2third-login-btn" href="#" class="btn-large grey darken-2 truncate">
+											<i class="fa fa-openid left"></i> $!oa2thirdLoginProvider
 										</a>
 									</div>
 								#end

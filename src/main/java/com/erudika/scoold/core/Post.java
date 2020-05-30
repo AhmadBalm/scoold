@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,20 +23,23 @@ import com.erudika.para.client.ParaClient;
 import com.erudika.para.core.ParaObject;
 import com.erudika.para.core.Sysprop;
 import com.erudika.para.core.User;
+import com.erudika.para.utils.Config;
 import com.erudika.para.utils.Pager;
 import com.erudika.para.utils.Utils;
+import com.erudika.scoold.ScooldServer;
 import com.erudika.scoold.utils.ScooldUtils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.validation.constraints.Size;
 import org.apache.commons.lang3.StringUtils;
 import javax.validation.constraints.NotBlank;
@@ -51,12 +54,13 @@ public abstract class Post extends Sysprop {
 	private static final long serialVersionUID = 1L;
 
 	public static final String DEFAULT_SPACE = "scooldspace:default";
+	public static final String ALL_MY_SPACES = "scooldspace:*";
 
-	@Stored @NotBlank @Size(min = 2, max = 20000)
+	@Stored
 	private String body;
-	@Stored @NotBlank @Size(min = 6, max = 255)
+	@Stored @NotBlank @Size(min = 2, max = 255)
 	private String title;
-	@Stored @NotEmpty @Size(min = 1, max = 5)
+	@Stored @NotEmpty @Size(min = 1)
 	private List<String> tags;
 
 	@Stored private Long viewcount;
@@ -69,6 +73,8 @@ public abstract class Post extends Sysprop {
 	@Stored private String lasteditby;
 	@Stored private String deletereportid;
 	@Stored private String location;
+	@Stored private String address;
+	@Stored private String latlng;
 	@Stored private List<String> commentIds;
 	@Stored private String space;
 	@Stored private Map<String, String> followers;
@@ -109,6 +115,7 @@ public abstract class Post extends Sysprop {
 		this.lastedited = lastedited;
 	}
 
+	@JsonIgnore
 	public Pager getItemcount() {
 		if (itemcount == null) {
 			itemcount = new Pager(5);
@@ -143,6 +150,22 @@ public abstract class Post extends Sysprop {
 
 	public void setLocation(String location) {
 		this.location = location;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	public String getLatlng() {
+		return latlng;
+	}
+
+	public void setLatlng(String latlng) {
+		this.latlng = latlng;
 	}
 
 	public List<String> getTags() {
@@ -236,12 +259,11 @@ public abstract class Post extends Sysprop {
 	}
 
 	public String create() {
-		createTags();
+		updateTags(null, getTags());
+		this.body = Utils.abbreviate(this.body, Config.getConfigInt("max_post_length", 20000));
 		Post p = client().create(this);
 		if (p != null) {
-			if (canHaveRevisions()) {
-				setRevisionid(Revision.createRevisionFromPost(p, true).create());
-			}
+			setRevisionid(Revision.createRevisionFromPost(p, true).create());
 			setId(p.getId());
 			setTimestamp(p.getTimestamp());
 			return p.getId();
@@ -250,9 +272,7 @@ public abstract class Post extends Sysprop {
 	}
 
 	public void update() {
-		if (canHaveRevisions()) {
-			setRevisionid(Revision.createRevisionFromPost(this, false).create());
-		}
+		setRevisionid(Revision.createRevisionFromPost(this, false).create());
 		client().update(this);
 	}
 
@@ -265,101 +285,70 @@ public abstract class Post extends Sysprop {
 		// delete Revisions
 		children.addAll(client().getChildren(this, Utils.type(Revision.class)));
 
-		if (canHaveChildren()) {
-			for (ParaObject reply : client().getChildren(this, Utils.type(Reply.class))) {
-				// delete answer
-				children.add(reply);
-				// delete Comments
-				children.addAll(client().getChildren(reply, Utils.type(Comment.class)));
-				// delete Revisions
-				children.addAll(client().getChildren(reply, Utils.type(Revision.class)));
-			}
+		for (ParaObject reply : client().getChildren(this, Utils.type(Reply.class))) {
+			// delete answer
+			children.add(reply);
+			// delete Comments
+			children.addAll(client().getChildren(reply, Utils.type(Comment.class)));
+			// delete Revisions
+			children.addAll(client().getChildren(reply, Utils.type(Revision.class)));
 		}
 		for (ParaObject child : children) {
 			ids.add(child.getId());
 		}
+		updateTags(getTags(), null);
 		client().deleteAll(ids);
 		client().delete(this);
-		updateTags(getTags(), null);
 	}
 
-	private void createTags() {
-		if (getTags() == null || getTags().isEmpty()) {
-			return;
+	public static String getTagString(String tag) {
+		if (StringUtils.isBlank(tag)) {
+			return "";
 		}
-		ArrayList<Tag> tagz = new ArrayList<Tag>();
-		Pager tagged = new Pager(0);
-		for (int i = 0; i < getTags().size(); i++) {
-			String ntag = getTags().get(i);
-			Tag t = new Tag(StringUtils.truncate(Utils.noSpaces(Utils.stripAndTrim(ntag, " "), "-"), 35));
-			if (!StringUtils.isBlank(t.getTag())) {
-				tagged.setCount(0);
-				client().findTagged(getType(), new String[]{t.getTag()}, tagged);
-				t.setCount((int) tagged.getCount() + 1);
-				getTags().set(i, t.getTag());
-				tagz.add(t);
-			}
-		}
-		client().createAll(tagz);
+		String s = tag.replaceAll("[\\p{S}\\p{P}\\p{C}&&[^+\\.]]", " ").replaceAll("\\p{Z}+", " ").trim();
+		return StringUtils.truncate(Utils.noSpaces(s, "-"), 35);
 	}
 
 	public void updateTags(List<String> oldTags, List<String> newTags) {
-		if (oldTags == null || oldTags.isEmpty()) {
-			return;
-		}
-		List<String> toDelete = new LinkedList<>();
-		List<Tag> toCreate = new LinkedList<>();
-		Map<String, Tag> idTags = new LinkedHashMap<>();
-		Set<String> removedTags = new HashSet<>();
-		Set<String> addedTags = new HashSet<>();
-		Set<String> oldTagsSet = new HashSet<>();
-		Set<String> newTagsSet = new HashSet<>();
-		Pager tagged = new Pager(1);
-		oldTagsSet.addAll(oldTags);
-
-		if (newTags != null) {
-			for (String newTag : newTags) {
-				if (!StringUtils.isBlank(newTag)) {
-					String tag = StringUtils.truncate(Utils.noSpaces(Utils.stripAndTrim(newTag, " "), "-"), 35);
-					newTagsSet.add(tag);
-					if (!oldTagsSet.contains(tag)) {
-						Tag t = new Tag(tag);
-						t.setCount(1);
-						addedTags.add(tag);
-						idTags.put(t.getId(), t);
+		List<String> deleteUs = new LinkedList<>();
+		List<Tag> updateUs = new LinkedList<>();
+		Map<String, Tag> oldTagz = Optional.ofNullable(oldTags).orElse(Collections.emptyList()).stream().
+				map(t -> new Tag(getTagString(t))).collect(Collectors.toMap(t -> t.getId(), t -> t));
+		Map<String, Tag> newTagz = Optional.ofNullable(newTags).orElse(Collections.emptyList()).stream().
+				map(t -> new Tag(getTagString(t))).collect(Collectors.toMap(t -> t.getId(), t -> t));
+		Map<String, Tag> existingTagz = client().readAll(Stream.concat(oldTagz.keySet().stream(), newTagz.keySet().
+				stream()).distinct().collect(Collectors.toList())).
+				stream().collect(Collectors.toMap(t -> t.getId(), t -> (Tag) t));
+		// add newly created tags
+		client().createAll(newTagz.values().stream().filter(t -> {
+			t.setCount(1);
+			return !existingTagz.containsKey(t.getId());
+		}).collect(Collectors.toList()));
+		// increment or decrement the count of the rest
+		existingTagz.values().forEach(t -> {
+			if (!oldTagz.containsKey(t.getId()) && newTagz.containsKey(t.getId())) {
+				t.setCount(t.getCount() + 1);
+				updateUs.add(t);
+			} else if (oldTagz.containsKey(t.getId()) && (newTags == null || !newTagz.containsKey(t.getId()))) {
+				t.setCount(t.getCount() - 1);
+				if (t.getCount() <= 0) {
+					// check if actual count is different
+					int c = client().getCount(Utils.type(Question.class),
+							Collections.singletonMap(Config._TAGS, t.getTag())).intValue();
+					if (c <= 1) {
+						deleteUs.add(t.getId());
+					} else {
+						t.setCount(c);
 					}
+				} else {
+					updateUs.add(t);
 				}
-			}
-		}
-		for (String oldTag : oldTags) {
-			if (!newTagsSet.contains(oldTag)) {
-				Tag t = new Tag(oldTag);
-				t.setCount(0);
-				removedTags.add(oldTag);
-				idTags.put(t.getId(), t);
-			}
-		}
-		for (String tag : idTags.keySet()) {
-			tagged.setCount(0);
-			Tag t = new Tag(tag);
-			client().findTagged(getType(), new String[]{t.getTag()}, tagged);
-			if (addedTags.contains(t.getTag())) {
-				t.setCount((int) tagged.getCount() + 1);
-			} else if (removedTags.contains(t.getTag())) {
-				t.setCount((int) tagged.getCount() - 1);
-			}
-			idTags.put(t.getId(), t);
-		}
-		for (Tag tag : idTags.values()) {
-			if (tag.getCount() <= 0) {
-				toDelete.add(tag.getId());
-			} else {
-				toCreate.add(tag);
-			}
-		}
-		client().deleteAll(toDelete);
-		client().createAll(toCreate);
-		setTags(new ArrayList<>(newTagsSet));
+			} // else: count remains unchanged
+		});
+		client().updateAll(updateUs);
+		client().deleteAll(deleteUs);
+		int tagsLimit = Math.min(ScooldServer.MAX_TAGS_PER_POST, 100);
+		setTags(newTagz.values().stream().limit(tagsLimit).map(t -> t.getTag()).collect(Collectors.toList()));
 	}
 
 	@JsonIgnore
@@ -384,7 +373,7 @@ public abstract class Post extends Sysprop {
 		this.comments = comments;
 	}
 
-	@JsonIgnore
+	@JsonIgnore // DO NOT REMOVE! clashes with User.getComments() field in index
 	public List<Comment> getComments() {
 		return this.comments;
 	}
@@ -421,7 +410,10 @@ public abstract class Post extends Sysprop {
 
 	@JsonIgnore
 	public List<Reply> getUnapprovedAnswers(Pager pager) {
-		return getAnswers(UnapprovedReply.class, pager);
+		if (isReply()) {
+			return Collections.emptyList();
+		}
+		return client().getChildren(this, Utils.type(UnapprovedReply.class), pager);
 	}
 
 	private List<Reply> getAnswers(Class<? extends Reply> type, Pager pager) {
@@ -504,6 +496,7 @@ public abstract class Post extends Sysprop {
 			setLastactivity(System.currentTimeMillis());
 			//update post without creating a new revision
 			client().update(this);
+			ScooldUtils.getInstance().triggerHookEvent("revision.restore", rev);
 		}
 	}
 
@@ -539,8 +532,4 @@ public abstract class Post extends Sysprop {
 	public int hashCode() {
 		return Objects.hashCode(getTitle()) + Objects.hashCode(getBody()) + Objects.hashCode(getTags());
 	}
-
-	public abstract boolean canHaveChildren();
-
-	public abstract boolean canHaveRevisions();
 }

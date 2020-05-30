@@ -31,15 +31,15 @@
 					#set($sortarr = {'votes': "", 'newest': ""} )
 					#setsortbyselection($sortarr 'votes')
 					<span class="right">
-						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)" title="Most voted answers"
-							 class="chip $sortarr.votes">$!lang.get("votes")</a>
-						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)?sortby=newest" title="Newest answers"
-							 class="chip $sortarr.newest">$!lang.get("newest")</a>
+						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)#sortorderparam('?')" title="Most voted answers"
+							 class="chip $sortarr.votes">#sortordericon() $!lang.get("votes")</a>
+						<a href="$questionlink/$showPost.id/#stripstr($showPost.title)?sortby=newest#sortorderparam('&' 'newest')" title="Newest answers"
+							 class="chip $sortarr.newest">#sortordericon("newest") $!lang.get("newest")</a>
 					</span>
 					<h4 class="grey-text">$!lang.get("answers.title") #showcount($itemcount.count)</h4>
 				</div>
 
-				#paginate("\#answerspage(\$answerslist \$showPost)" $itemcount "" "page")
+				#paginate("replies" $itemcount "" "page")
 
 				#if(!$showPost.isClosed())
 					#if ($authenticated)
@@ -68,7 +68,6 @@
 									</label>
 								</div>
 
-								<div><i class="fa fa-save save-icon green-text hidden-save-icon"></i> &nbsp;</div>
 								<button class="btn mtl waves-effect waves-light" type="submit">
 									<i class="fa fa-paper-plane left"></i>$!lang.get('post')
 								</button>
@@ -118,7 +117,7 @@
 				#end
 				#if ($showPost.tags && !$showPost.tags.isEmpty())
 					<div class="mediumText pvs"><i class="fa fa-tags grey-text"></i> $!lang.get('tags.title')</div>
-					<div class="mtm">#tagsbox($showPost.tags $questionslink)</div>
+					<div class="mtm tags-aside">#tagsbox($showPost.tags $questionslink)</div>
 				#end
 			</div>
 

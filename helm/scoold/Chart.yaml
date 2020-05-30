@@ -1,11 +1,11 @@
 apiVersion: v1
-appVersion: 1.33.1
+appVersion: 1.39.3
 description: Scoold - Stack Overflow in a JAR
 name: scoold
 home: https://scoold.com
 sources:
 - https://github.com/Erudika/scoold
-icon: https://static.scoold.com/logosq.png
+icon: https://scoold.com/logosq.png
 version: 0.1.0
 keywords:
 - scoold

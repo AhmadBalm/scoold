@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
  */
 package com.erudika.scoold.core;
 
+import java.util.LinkedList;
+
 /**
  *
  * @author Alex Bogdanovski [alex@erudika.com]
@@ -26,13 +28,6 @@ public class Question extends Post {
 
 	public Question() {
 		super();
-	}
-
-	public boolean canHaveChildren() {
-		return true;
-	}
-
-	public boolean canHaveRevisions() {
-		return true;
+		setTags(new LinkedList<String>());
 	}
 }

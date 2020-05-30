@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Erudika. https://erudika.com
+ * Copyright 2013-2020 Erudika. https://erudika.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,6 +134,7 @@ public class Report extends Sysprop {
 	public String create() {
 		Report r = client().create(this);
 		if (r != null) {
+			ScooldUtils.getInstance().triggerHookEvent("report.create", this);
 			setId(r.getId());
 			setTimestamp(r.getTimestamp());
 			return r.getId();
